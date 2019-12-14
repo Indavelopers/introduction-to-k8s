@@ -1,0 +1,322 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Usar Ingress como balanceador de carga externo</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-ingress"
+                  title="Usar Ingress como balanceador de carga externo"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo crear Servicios internos y externos</li>
+<li>Comprobar la resolución de DNS interna para los Servicios</li>
+<li>Cómo usar un Ingress para redirigir peticiones a diferentes Servicios</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-ingress
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crear un Servicio interno" duration="0">
+        <p>Vamos a crear un Servicio interno de tipo ClusterIp para exponer un Despliegue internamente dentro del clúster.</p>
+<ol type="1">
+<li>Crea el archivo <code>deployments/demo-ingress-v1.yaml</code> con este manifiesto:<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: demo-ingress
+spec:
+replicas: 3
+selector:
+matchLabels:
+  app: demo-ingress
+  version: v1
+template:
+metadata:
+  labels:
+    app: demo-ingress
+    version: v1
+spec:
+  containers:
+  - image: gcr.io/google-samples/hello-app:1.0
+    name: hello-world
+    ports:
+    - containerPort: 8080
+</code></pre>
+</li>
+<li>Crea el Despliegue:<pre><code>kubectl apply -f deployments/demo-ingress-v1.yaml -n lab-ingress
+</code></pre>
+</li>
+<li>Verifica que los Pods están ejecutándose:<pre><code>kubectl get pods -n lab-ingress
+</code></pre>
+</li>
+<li>Verifica los detalles del Despliegue:<pre><code>kubectl describe deployments demo-ingress -n lab-ingress
+</code></pre>
+</li>
+<li>Crea el archivo <code>services/demo-ingress-v1.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Service
+metadata:
+name: demo-service
+labels:
+version: v1
+spec:
+type: ClusterIP
+selector:
+app: demo-ingress
+version: v1
+ports:
+- protocol: TCP
+port: 80
+targetPort: 8080
+</code></pre>
+</li>
+<li>Crea el Servicio:<pre><code>kubectl apply -f services/demo-ingress-v1.yaml -n lab-ingress
+</code></pre>
+</li>
+<li>Verifica que el Servicio está en ejecución:<pre><code>kubectl get services -n lab-ingress
+</code></pre>
+</li>
+<li>Verifica los detalles del Servicio:<pre><code>kubectl describe services demo-service -n lab-ingress
+</code></pre>
+</li>
+<li>Anota la IP interna del Servicio, [SERVICIO_IP]</li>
+</ol>
+<h2 is-upgraded>Comprueba el Servicio interno</h2>
+<ol type="1">
+<li>Despliega un Pod para comprobar la conexión al Servicio interno y la resolución de DNS:<pre><code>kubectl run service-test-pod --image gcr.io/google-samples/node-hello:1.0 --generator=run-pod/v1 -n lab-ingress
+</code></pre>
+</li>
+<li>Conéctate al Pod ejecutando una sesión shell:<pre><code>kubectl exec -it service-test-pod -n lab-ingress -- sh
+</code></pre>
+</li>
+<li>Comprueba la conexión al Servicio interno y la resolución de DNS:<pre><code>apt update
+apt install curl -y
+curl [SERVICIO_IP]
+curl demo-service.lab-ingress.svc.cluster.local
+</code></pre>
+</li>
+<li>Sal de la sesión shell:<pre><code>exit
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Convierte el Servicio en externo" duration="0">
+        <p>Ahora convierte el Servicio en uno accesible desde fuera del Clúster usando una nueva versión del manifiesto con un Servicio de tipo NodePort.</p>
+<ol type="1">
+<li>Crea el archivo <code>services/demo-ingress-v1-nodeport.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Service
+metadata:
+name: demo-service
+labels:
+version: v1
+spec:
+type: NodePort
+selector:
+app: demo-ingress
+version: v1
+ports:
+- protocol: TCP
+port: 80
+targetPort: 8080
+</code></pre>
+Fíjate que únicamente cambiamos el tipo de Servicio, manteniendo el nombre y el resto de características.</li>
+<li>Actualiza el Servicio:<pre><code>kubectl apply -f services/demo-ingress-v1-nodeport.yaml -n lab-ingress
+</code></pre>
+</li>
+<li>Verifica los detalles del Servicio:<pre><code>kubectl describe services demo-service -n lab-ingress
+</code></pre>
+Fíjate en el tipo de Servicio empleado.</li>
+<li>Anota el puerto del nodo del Servicio, [PUERTO_NODO]</li>
+<li>Anota la IP externa de uno de los Nodos:<pre><code>gcloud compute instances list
+</code></pre>
+</li>
+<li>Comprueba la conexión desde fuera del clúster al Servicio a través de la IP de uno de los Nodos, [IP_NODO] y el puerto del Servicio NodePort, [PUERTO_NODO]:<pre><code>curl [IP_NODO]:[PUERTO_NODO]
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Despliega un nuevo Despliegue y Servicio de tipo LoadBalancer" duration="0">
+        <p>Vamos a desplegar un nuevo Despliegue de Pods y un Servicio asociado a los mismos, esta vez de tipo LoadBalancer.</p>
+<ol type="1">
+<li>Crea el archivo <code>deployments/demo-ingress-v2.yaml</code> con este manifiesto:<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: demo-ingress-v2
+spec:
+replicas: 3
+selector:
+matchLabels:
+  app: demo-ingress
+  version: v2
+template:
+metadata:
+  labels:
+    app: demo-ingress
+    version: v2
+spec:
+  containers:
+  - image: gcr.io/google-samples/hello-app:2.0
+    name: hello-world
+    ports:
+    - containerPort: 8080
+</code></pre>
+Este manifiesto corresponde a otro Despliegue diferente, con una nueva versión de la misma imagen de Contenedor.</li>
+<li>Crea el Despliegue:<pre><code>kubectl apply -f deployments/demo-ingress-v2.yaml -n lab-ingress
+</code></pre>
+</li>
+<li>Verifica que los Pods están ejecutándose:<pre><code>kubectl get pods -n lab-ingress
+</code></pre>
+</li>
+<li>Verifica los detalles del Despliegue:<pre><code>kubectl describe deployments demo-ingress-v2 -n lab-ingress
+</code></pre>
+</li>
+<li>Crea el archivo <code>services/demo-ingress-v2.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Service
+metadata:
+name: demo-service-v2
+labels:
+version: v2
+spec:
+type: LoadBalancer
+selector:
+app: demo-ingress
+version: v2
+ports:
+- protocol: TCP
+port: 80
+targetPort: 8080
+</code></pre>
+</li>
+<li>Crea el Servicio:<pre><code>kubectl apply -f services/demo-ingress-v2.yaml -n lab-ingress
+</code></pre>
+</li>
+<li>Verifica que el Servicio está en ejecución. Espera a que tenga una IP externa asignada (puede tardar hasta 5 minutos):<pre><code>kubectl get services -n lab-ingress -w
+</code></pre>
+</li>
+<li>Verifica los detalles del Servicio:<pre><code>kubectl describe services demo-service-v2 -n lab-ingress
+</code></pre>
+</li>
+<li>Anota la IP externa del LoadBalancer del Servicio, [SERVICIO_IP].</li>
+<li>Comprueba la conexión desde fuera del clúster al Servicio a través de la IP del balanceador de carga creado, [SERVICIO_IP]:<pre><code>curl [SERVICIO_IP]
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Despliega un Ingress que redireccione a ambos Servicios" duration="0">
+        <p>Vamos a desplegar un recurso Ingress que redireccionará internamente a ambos Servicios en función de la URL de la petición web.</p>
+<ol type="1">
+<li>Crea el archivo <code>services/demo-ingress-ingress.yaml</code> con este manifiesto:<pre><code>apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+name: demo-ingress
+annotations:
+nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+rules:
+- http:
+paths:
+- path: /v1
+  backend:
+    serviceName: demo-service
+    servicePort: 80
+- path: /v2
+  backend:
+    serviceName: demo-service-v2
+    servicePort: 80
+</code></pre>
+</li>
+<li>Crea el Ingress:<pre><code>kubectl apply -f services/demo-ingress-ingress.yaml -n lab-ingress
+</code></pre>
+</li>
+<li>Verifica que el Ingress está en ejecución. Espera a que tenga una IP externa asignada (puede tardar hasta 5 minutos):<pre><code>kubectl get ingress -n lab-ingress -w
+</code></pre>
+</li>
+<li>Verifica los detalles del Ingress:<pre><code>kubectl describe ingress demo-service-ingress -n lab-ingress
+</code></pre>
+</li>
+<li>Anota la IP externa del LoadBalancer L7 del Ingress, [INGRESS_IP].</li>
+<li>Comprueba la conexión desde fuera del clúster a ambos servicios a través de la IP del Ingress, [INGRESS_IP]:<pre><code>curl [INGRESS_IP]/v1
+curl [INGRESS_IP]/v2
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina el namespace, lo cual eliminará todos los recursos:</p>
+<pre><code>kubectl delete namespace lab-ingress
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo crear Servicios internos y externos</li>
+<li>Comprobar la resolución de DNS interna para los Servicios</li>
+<li>Cómo usar un Ingress para redirigir peticiones a diferentes Servicios</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

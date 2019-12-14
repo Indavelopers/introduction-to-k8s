@@ -1,0 +1,208 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Configurar un Pod para usar un Volumen Persistente como almacenamiento</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-persistent-volumes"
+                  title="Configurar un Pod para usar un Volumen Persistente como almacenamiento"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo crear un Volumen Persistente</li>
+<li>Cómo crear un PersistentVolumeClaim</li>
+<li>Cómo configurar un Pod para usar un Volumen Persistente como almacenamiento</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-persistent-volumes
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Resumen del proceso" duration="0">
+        <ol type="1">
+<li>El administrador del clúster crea un Volumen Persistente soportado por un sistema de almacenamiento, sin asociarlo con ningún Pod.</li>
+<li>El desarrollador crea un PersistentVolumeClaim que se asocia automáticamente a un Volumen Persistente compatible.</li>
+<li>El desarrollador crea un Pod que usa el PersistentVolumeClaim anterior para almacenar archivos.</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crea un disco" duration="0">
+        <p>Necesitamos crear un disco persistente de Compute Engine previamente para que K8s pueda montarlo en un Nodo:</p>
+<pre><code>gcloud compute disks create pd-disk-1 --size 15Gb --zone europe-west2-c
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crea un Volumen Persistente" duration="0">
+        <p>En este ejercicio vamos a crear un PersistentVolume de tipo <em>gcePersistentDisk</em>. Este tipo de PersistentVolume usa un disco persistente de Google Compute Engine.</p>
+<ol type="1">
+<li>Crea el archivo <code>persistent-volumes/pv-volume.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: PersistentVolume
+metadata:
+name: pv-demo-volume
+labels:
+type: local
+spec:
+storageClassName: standard
+capacity:
+storage: 10Gi
+accessModes:
+- ReadWriteOnce
+gcePersistentDisk:
+fsType: ext4
+pdName: pd-disk-1
+</code></pre>
+</li>
+<li>Crea el Volumen Persistente:<pre><code>kubectl apply -f persistent-volumes/pv-volume.yaml
+</code></pre>
+</li>
+<li>Verifica su estado:<pre><code>kubectl get pv pv-demo-volume
+</code></pre>
+La respuesta muestra que el PersistentVolume tiene un estado de <code>AVAILABLE</code> o disponible, lo cual significa que aún no ha sido asociado a un PersistentVolumeClaim.</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crea un PersistentVolumeClaim" duration="0">
+        <p>El siguiente paso es crear un PersistentVolumeClaim, que será usado por el Pod para solicitar almacenamiento.</p>
+<ol type="1">
+<li>Crea el archivo <code>persistent-volumes/pv-claim.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+name: pv-demo-claim
+spec:
+storageClassName: standard
+accessModes:
+- ReadWriteOnce
+resources:
+requests:
+  storage: 3Gi
+</code></pre>
+</li>
+<li>Crea el PersistentVolumeClaim:<pre><code>kubectl apply -f persistent-volumes/pv-claim.yaml -n lab-persistent-volumes
+</code></pre>
+Al ser creado, el PersistentVolumeClaim será asociado a un Volumen Persistente que satisfaga sus requisitos y la StorageClass seleccionada.</li>
+<li>Verifica el estado del Volumen Persistente de nuevo:<pre><code>kubectl get pv pv-demo-volume
+</code></pre>
+Ahora el estado muestra <code>BOUND</code> o asociado.</li>
+<li>Verifica el estado del PersistentVolumeClaim:<pre><code>kubectl get pvc pv-demo-claim -n lab-persistent-volumes
+</code></pre>
+La salida muestra que el PersistentVolumeClaim está asociado al Volumen Persistente <code>pv-demo-volume</code>.</li>
+</ol>
+<aside class="special"><p><em>¿Por qué crees que a veces usamos la flag </em><code>-n</code><em> para indicar el namespace y a veces no?</em></p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crear un Pod que usa dicho PersistentVolumeClaim" duration="0">
+        <p>El siguiente paso es crear un Pod que use dicho PersistentVolumeClaim como volumen de almacenamiento.</p>
+<ol type="1">
+<li>Crea el archivo <code>pods/pv-pod.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+name: pv-demo-pod
+spec:
+containers:
+- name: pv-demo-container
+  image: nginx
+  ports:
+    - containerPort: 80
+      name: &#34;http-server&#34;
+  volumeMounts:
+    - mountPath: &#34;/usr/share/nginx/html&#34;
+      name: pv-storage
+volumes:
+- name: pv-storage
+  persistentVolumeClaim:
+    claimName: pv-demo-claim          
+</code></pre>
+</li>
+<li>Crea el Pod:<pre><code>kubectl apply -f pods/pv-pod.yaml -n lab-persistent-volumes
+</code></pre>
+</li>
+<li>Verifica que está ejecutándose:<pre><code>kubectl get pods pv-demo-pod -n lab-persistent-volumes
+</code></pre>
+</li>
+<li>Verifica que tiene el Volumen pv-demo-volume asignado:<pre><code>kubectl describe pod pv-demo-pod -n lab-persistent-volumes
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<ol type="1">
+<li>Elimina el namespace, lo cual eliminará todos los recursos:<pre><code>kubectl delete namespace lab-persistent-volumes
+</code></pre>
+</li>
+<li>Elimina el disco persistente creado:<pre><code>gcloud compute disks delete pd-disk-1 --zone europe-west2-c
+</code></pre>
+</li>
+</ol>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo configurar un Pod para usar un Volumen como almacenamiento</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

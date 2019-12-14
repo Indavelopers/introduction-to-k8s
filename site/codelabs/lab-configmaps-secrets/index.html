@@ -1,0 +1,332 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Crear ConfigMaps y Secretos</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-configmaps-secrets"
+                  title="Crear ConfigMaps y Secretos"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo crear ConfigMaps y Secretos de forma imperativa y con manifiestos</li>
+<li>Cómo consumir Secretos y ConfigMaps en Pods en variables de entorno o como Volúmenes montados</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-configmaps-secrets
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crear ConfigMaps" duration="0">
+        <p>Vamos a crear ConfigMaps de 3 formas diferentes:</p>
+<ol type="1">
+<li>Usando <code>kubectl</code>, desde una clave-valor literal</li>
+<li>Usando <code>kubectl</code>, desde un archivo</li>
+<li>Usando un manifiesto YAML</li>
+</ol>
+<h2 is-upgraded>Usando kubectl, desde una clave-valor literal</h2>
+<ol type="1">
+<li>Crea un ConfigMap desde una clave-valor literal:<pre><code>kubectl create configmap demo-cm-literal --from-literal message=hello_world -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Comprueba la descripción del ConfigMap:<pre><code>kubectl describe configmaps demo-cm-literal -n lab-configmaps-secrets
+</code></pre>
+</li>
+</ol>
+<h2 is-upgraded>Usando kubectl, desde un archivo</h2>
+<ol type="1">
+<li>Crea el archivo <code>demo.properties</code> con el siguiente contenido:<pre><code>foo=bar
+meaning_of_life=42
+song=always_look_on_the_bright_side_of_life
+</code></pre>
+</li>
+<li>Crea un ConfigMap con el contenido del archivo:<pre><code>kubectl create configmap demo-cm-file --from-file=demo.properties -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Comprueba la descripción del ConfigMap:<pre><code>kubectl describe configmaps demo-cm-file -n lab-configmaps-secrets
+</code></pre>
+</li>
+</ol>
+<h2 is-upgraded>Usando un manifiesto YAML</h2>
+<ol type="1">
+<li>Crea el archivo <code>volumes/demo-cm.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: ConfigMap
+metadata:
+name: demo-cm-manifest
+data:
+spam: eggs
+knight: black
+</code></pre>
+</li>
+<li>Crea un ConfigMap con el contenido del manifiesto:<pre><code>kubectl apply -f volumes/demo-cm.yaml -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Comprueba la descripción del ConfigMap:<pre><code>kubectl describe configmaps demo-cm-manifest -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Lista todos los ConfigMaps creados:<pre><code>kubectl get configmaps -n lab-configmaps-secrets
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Usar los ConfigMaps en Contenedores" duration="0">
+        <p>Vamos a crear un Despliegue con Pods donde montaremos la información contenida en uno de los ConfigMaps como un Volumen y la de otro ConfigMap como variables de entorno.</p>
+<ol type="1">
+<li>Crea el archivo <code>deployments/demo-cm.yaml</code> con este manifiesto:<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: demo-configmap
+spec:
+selector:
+matchLabels:
+  app: demo-configmap
+template:
+metadata:
+  labels:
+    app: demo-configmap
+spec:
+  containers:
+  - name: hello-world
+    image: gcr.io/google-samples/node-hello:1.0
+    volumeMounts:
+    - name: properties
+      mountPath: /etc/config
+    env:
+    - name: SPAM
+      valueFrom:
+        configMapKeyRef:
+          name: demo-cm-manifest
+          key: spam
+  volumes:
+  - name: properties
+    configMap:
+      name: demo-cm-file
+</code></pre>
+</li>
+<li>Crea el Despliegue:<pre><code>kubectl apply -f deployments/demo-cm.yaml -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Verifica que el Pod está ejecutándose:<pre><code>kubectl get pods -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Anota el nombre del Pod y verifica sus detalles:<pre><code>kubectl describe pod [NOMBRE_POD] -n lab-configmaps-secrets
+</code></pre>
+Fíjate en sus Volúmenes y variables de entorno.</li>
+</ol>
+<h2 is-upgraded>Comprobar el contenido de los ConfigMap consumidos por el Contenedor</h2>
+<ol type="1">
+<li>Conéctate al Pod ejecutando una sesión shell:<pre><code>kubectl exec -it [NOMBRE_POD] -n lab-configmaps-secrets -- sh
+</code></pre>
+</li>
+<li>Lista los contenidos del directorio del Volumen montado:<pre><code>ls /etc/config
+</code></pre>
+Las claves del archivo con el que creamos el ConfigMap aparecerán como archivos separados.</li>
+<li>Comprueba el contenido de dichos archivos:<pre><code>cat /etc/config/demo.properties
+</code></pre>
+</li>
+<li>Comprueba la variable de entorno asignada:<pre><code>echo $SPAM
+</code></pre>
+</li>
+<li>Sal de la sesión shell:<pre><code>exit
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crear Secretos" duration="0">
+        <p>Del mismo modo, vamos a crear Secrets de las mismas 3 formas distintas:</p>
+<ol type="1">
+<li>Usando <code>kubectl</code>, desde una clave-valor literal</li>
+<li>Usando <code>kubectl</code>, desde un archivo</li>
+<li>Usando un manifiesto YAML</li>
+</ol>
+<h2 is-upgraded>Usando kubectl, desde una clave-valor literal</h2>
+<ol type="1">
+<li>Crea un Secreto desde una clave-valor literal:<pre><code>kubectl create secret generic demo-secret-literal --from-literal secret=secret_message -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Comprueba la descripción del Secreto:<pre><code>kubectl describe secret demo-secret-literal -n lab-configmaps-secrets
+</code></pre>
+</li>
+</ol>
+<h2 is-upgraded>Usando kubectl, desde un archivo</h2>
+<ol type="1">
+<li>Crea el archivo <code>secret.txt</code> con el siguiente contenido:<pre><code>secret_key=QWERTYUIOPASDFGHJKLZXCVBNM
+</code></pre>
+</li>
+<li>Crea un Secreto con el contenido del archivo:<pre><code>kubectl create secret generic demo-secret-file --from-file=secret.txt -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Comprueba la descripción del Secreto:<pre><code>kubectl describe secret demo-secret-file -n lab-configmaps-secrets
+</code></pre>
+</li>
+</ol>
+<h2 is-upgraded>Usando un manifiesto YAML</h2>
+<ol type="1">
+<li>Crea el archivo <code>volumes/demo-secret.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Secret
+metadata:
+name: demo-secret-manifest
+type: Opaque
+data:
+user: YWRtaW4=
+password: MWYyZDFlMmU2N2Rm
+</code></pre>
+</li>
+<li>Crea un Secreto con el contenido del manifiesto:<pre><code>kubectl apply -f volumes/demo-secret.yaml -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Comprueba la descripción del Secreto:<pre><code>kubectl describe secret demo-secret-manifest -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Lista todos los Sescretos creados:<pre><code>kubectl get secrets -n lab-configmaps-secrets
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Usar los Secretos en Contenedores" duration="0">
+        <p>Del mismo modo que para los ConfigMaps, vamos a crear un Despliegue con Pods donde montaremos la información contenida en uno de los Secretos como un Volumen y la de otro Secreto como variables de entorno.</p>
+<ol type="1">
+<li>Crea el archivo <code>deployments/demo-secret.yaml</code> con este manifiesto:<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: demo-secret
+spec:
+selector:
+matchLabels:
+  app: demo-secret
+template:
+metadata:
+  labels:
+    app: demo-secret
+spec:
+  containers:
+  - name: hello-world
+    image: gcr.io/google-samples/node-hello:1.0
+    volumeMounts:
+    - name: secrets
+      mountPath: /etc/secrets
+    env:
+    - name: USER
+      valueFrom:
+        secretKeyRef:
+          name: demo-secret-manifest
+          key: user
+    - name: PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: demo-secret-manifest
+          key: password             
+  volumes:
+  - name: secrets
+    secret:
+      secretName: demo-secret-file
+</code></pre>
+<em>No hay que decir que no debes usar un nombre de usuario y contraseña en un proyecto real de esta manera, ¿verdad?</em></li>
+<li>Crea el Despliegue:<pre><code>kubectl apply -f deployments/demo-secret.yaml -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Verifica que el Pod está ejecutándose:<pre><code>kubectl get pods -n lab-configmaps-secrets
+</code></pre>
+</li>
+<li>Anota el nombre del Pod que consume los secretos y verifica sus detalles:<pre><code>kubectl describe pod [NOMBRE_POD] -n lab-configmaps-secrets
+</code></pre>
+Fíjate en sus Volúmenes y variables de entorno.</li>
+</ol>
+<h2 is-upgraded>Comprobar el contenido de los Secretos consumidos por el Contenedor</h2>
+<ol type="1">
+<li>Conéctate al Pod que consume los secretos ejecutando una sesión shell:<pre><code>kubectl exec -it [NOMBRE_POD] -n lab-configmaps-secrets -- sh
+</code></pre>
+</li>
+<li>Lista los contenidos del directorio del Volumen montado:<pre><code>ls /etc/secrets
+</code></pre>
+Las claves del archivo con el que creamos el ConfigMap aparecerán como archivos separados.</li>
+<li>Comprueba el contenido de dichos archivos:<pre><code>cat /etc/secrets/secret.txt
+</code></pre>
+</li>
+<li>Comprueba la variable de entorno asignada:<pre><code>echo $USER
+echo $PASSWORD
+</code></pre>
+</li>
+<li>Sal de la sesión shell:<pre><code>exit
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina el namespace, lo cual eliminará todos los recursos:</p>
+<pre><code>kubectl delete namespace lab-configmaps-secrets
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo crear ConfigMaps y Secrets de forma imperativa y con manifiestos</li>
+<li>Cómo consumir Secretos y ConfigMaps en Pods en variables de entorno o como Volúmenes montados</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2019-12-14T14:06:28+01:00",
+  "id": "lab-pod-initialization",
+  "duration": 0,
+  "title": "Configurar un Contenedor de inicialización para un Pod",
+  "summary": "Configure Pod initialization",
+  "source": "lab-pod-initialization.md",
+  "theme": "",
+  "status": [
+    "published"
+  ],
+  "category": [
+    "introduction-to-k8"
+  ],
+  "tags": [
+    "web"
+  ],
+  "feedback": "https://www.vectoritcgroup.com",
+  "url": "lab-pod-initialization"
+}

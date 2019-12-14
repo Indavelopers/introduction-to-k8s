@@ -1,0 +1,141 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Configurar un Contenedor de inicialización para un Pod</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-pod-initialization"
+                  title="Configurar un Contenedor de inicialización para un Pod"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Crear un Pod con un Contenedor de inicialización</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-pod-initialization
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crear un Pod con un Contenedor de inicialización" duration="0">
+        <p>Vamos a crear un Pod con un Contenedor de aplicación y otro Contenedor de inicialización, que se ejecutará hasta completarse antes de que el Contenedor de aplicación comience.</p>
+<ol type="1">
+<li>Crea el archivo <code>pods/init-container.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+name: demo-init
+spec:
+containers:
+- name: nginx
+image: nginx
+ports:
+- containerPort: 80
+volumeMounts:
+- name: workdir
+  mountPath: /usr/share/nginx/html
+initContainers:
+- name: install
+image: busybox
+command:
+- wget
+- &#34;-O&#34;
+- &#34;/work-dir/index.html&#34;
+- http://kubernetes.io
+volumeMounts:
+- name: workdir
+  mountPath: &#34;/work-dir&#34;
+dnsPolicy: Default
+volumes:
+- name: workdir
+emptyDir: {}
+</code></pre>
+En la definición del Pod especificamos un Volumen de tipo <code>emptyDir</code> que comparten ambos Contenedores. El contenedor de inicialización crea un archivo HTML en el mismo con la web de <a href="https://k8s.io" target="_blank">k8s.io</a>, que el contenedor NGINX finalmente muestra.</li>
+<li>Crea el Pod:<pre><code>kubectl apply -f pods/init-container.yaml -n lab-pod-initialization
+</code></pre>
+</li>
+<li>Verifica que está ejecutándose:<pre><code>kubectl get pods demo-init -n lab-pod-initialization
+</code></pre>
+</li>
+<li>Verifica sus Contenedores y Volumen:<pre><code>kubectl describe pods demo-init -n lab-pod-initialization
+</code></pre>
+<em>¿Cuántos segundos ha tardado el Contenedor de inicialización en ejecutarse? ¿La imagen de NGINX se ha descargado antes o después de que terminara de ejecutarse?</em></li>
+<li>Establece una shell en el Contenedor NGINX del Pod:<pre><code>kubectl exec -it demo-init -n lab-pod-initialization -- /bin/bash
+</code></pre>
+</li>
+<li>Comprueba la respuesta del servidor NGINX:<pre><code>apt update
+apt install curl -y
+curl localhost
+</code></pre>
+La salida debe mostrar la web del archivo creado por el Contenedor de inicialización.</li>
+<li>Sal de la shell:<pre><code>exit
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina el namespace, lo cual eliminará todos los recursos:</p>
+<pre><code>kubectl delete namespace lab-pod-initialization
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Crear un Pod con un Contenedor de inicialización</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

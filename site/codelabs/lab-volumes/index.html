@@ -1,0 +1,137 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Configurar un Pod para usar un Volumen como almacenamiento</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-volumes"
+                  title="Configurar un Pod para usar un Volumen como almacenamiento"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo configurar un Pod para usar un Volumen como almacenamiento</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-volumes
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Configurar un Volumen para un Pod" duration="0">
+        <p>Vamos a crear un Pod que ejecuta un Contenedor y tiene asignado un Volumen de tipo emptyDir que comparte ciclo de vida con el Pod, incluso si el Contenedor se reinicia.</p>
+<p>Para crear un Pod con dicho Volumen:</p>
+<ol type="1">
+<li>Crea el archivo <code>pods/redis.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+name: redis
+spec:
+containers:
+- name: redis
+image: redis
+volumeMounts:
+- name: redis-storage
+  mountPath: /data/redis
+volumes:
+- name: redis-storage
+emptyDir: {}
+</code></pre>
+</li>
+<li>Crea el Pod:<pre><code>kubectl apply -f pods/redis.yaml -n lab-volumes
+</code></pre>
+</li>
+<li>Espera a que esté disponible, en estado <code>Running</code>, y continúa vigilando su estado:<pre><code>kubectl get pods -n lab-volumes -w
+</code></pre>
+</li>
+<li>Abre otra pestaña de sesión en Cloud Shell.</li>
+<li>En la nueva pestaña, ejecuta una shell en el Contenedor en ejecución:<pre><code>kubectl exec -it redis -- /bin/bash
+</code></pre>
+</li>
+<li>Ve a <code>/data/redis</code> y crea un archivo:<pre><code>cd /data/redis/
+echo &#34;Hello world!&#34; &gt; hello_world.txt
+</code></pre>
+</li>
+<li>En la misma shell del contenedor, lista los procesos en ejecución instalando procps:<pre><code>apt-get update
+apt-get install procps
+ps aux
+</code></pre>
+Comprueba que el proceso <code>redis</code> está en ejecución.</li>
+<li>Elimina el proceso <code>redis</code> para forzar el reinicio del Contenedor usando el <code>[PID]</code> correspondiente:<pre><code>kill [PID]
+</code></pre>
+</li>
+<li>En la pestaña de Cloud Shell original, vigila los cambios en el Pod Redis. Debes poder comprobar como el Pod se ha reiniciado y ha vuelto al estado de &#34;Running&#34;.</li>
+<li>Pulsa <code>CTRL + C</code> para detener el comando.</li>
+<li>Ejecuta una nueva shell en el Contenedor reiniciado, en cualquiera de las dos pestañas de Cloud Shell.</li>
+<li>Ve a <code>/data/redis/</code> y verifica que el archivo continua ahí:<pre><code>cd /data/redis
+ls
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina el namespace, lo cual eliminará todos los recursos:</p>
+<pre><code>kubectl delete namespace lab-volumes
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo configurar un Pod para usar un Volumen como almacenamiento</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

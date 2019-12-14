@@ -1,0 +1,151 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Desplegar pods en K8s</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-pods"
+                  title="Desplegar pods en K8s"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo ejecutar pods de forma imperativa</li>
+<li>Cómo desplegar pods de forma declarativa</li>
+<li>Cómo comprobar la respuesta del puerto de un pod</li>
+<li>Cómo eliminar pods</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Desplegar un pod" duration="0">
+        <ol type="1">
+<li>En primer lugar, explora la documentación de los pods:<pre><code>kubectl explain pods
+kubectl explain pods.spec
+kubectl explain pods.spec.containers
+</code></pre>
+</li>
+<li>Ejecuta un pod de NGINX:<pre><code>kubectl run nginx --image nginx --generator=run-pod/v1
+</code></pre>
+</li>
+<li>Lista los pods en ejecución:<pre><code>kubectl get pods
+</code></pre>
+</li>
+<li>Ejecuta un nuevo pod de NGINX con el puerto 80 expuesto:<pre><code>kubectl run nginx-open-port --image nginx --generator=run-pod/v1 --port 80
+</code></pre>
+</li>
+<li>Lista los pods en ejecución de nuevo:<pre><code>kubectl get pods
+</code></pre>
+</li>
+<li>Abre otra nueva sesión en una nueva pestaña de Cloud Shell.</li>
+<li>En la nueva pestaña, activa la redirección de puertos al puerto local 8080:<pre><code>kubectl port-forward nginx-open-port 8080:80
+</code></pre>
+</li>
+<li>Vuelve a la pestaña anterior y comprueba la respuesta del pod en dicho puerto con <code>curl</code> o en una pestaña de tu navegador (con la función &#34;web preview&#34; de Cloud Shell):<pre><code>curl localhost:8080
+</code></pre>
+Debes poder acceder a la página de muestra de NGINX.</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crear pods a través de un manifiesto" duration="0">
+        <ol type="1">
+<li>Copia la siguiente definición de Pod en un archivo <code>pods/nginx.yaml</code>:<pre><code>mkdir pods
+nano pods/nginx.yaml
+</code></pre>
+<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+name: nginx-app
+labels:
+app: nginx
+spec:
+containers:
+- name: nginx
+image: nginx
+ports:
+-  containerPort: 80
+</code></pre>
+</li>
+<li>Crea el pod de forma declarativa:<pre><code>kubectl apply -f pods/nginx.yaml
+</code></pre>
+</li>
+<li>Lista los pods en ejecución de nuevo:<pre><code>kubectl get pods
+</code></pre>
+</li>
+<li>Elimina los pods en ejecución:<pre><code>kubectl delete pod nginx nginx-open-port nginx-app
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Reto" duration="0">
+        <p><strong>¿Serías capaz de desplegar 3 réplicas de la imagen de </strong><a href="https://hub.docker.com/_/httpd" target="_blank"><strong>Apache 2</strong></a><strong>?</strong></p>
+<p><strong>¿Y hacerlo a partir de un manifiesto?</strong></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo ejecutar pods de forma imperativa</li>
+<li>Cómo desplegar pods de forma declarativa</li>
+<li>Cómo comprobar la respuesta del puerto de un pod</li>
+<li>Cómo eliminar pods</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

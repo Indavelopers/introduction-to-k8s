@@ -1,0 +1,165 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Expón una aplicación externamente con un Servicio</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-external-service"
+                  title="Expón una aplicación externamente con un Servicio"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Desplegar una aplicación con múltiples réplicas</li>
+<li>Crear un servicio de tipo NodePort</li>
+<li>Crear un servicio de tipo LoadBalancer</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-external-service
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Desplegar una aplicación" duration="0">
+        <p>Vamos a desplegar una aplicación con 5 réplicas de Pods usando un Despliegue.</p>
+<ol type="1">
+<li>Crea el nuevo directorio <code>deployments</code>:<pre><code>mkdir deployments
+</code></pre>
+</li>
+<li>Crea el archivo <code>deployments/demo-deployment.yaml</code> con este manifiesto:<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: demo-deployment
+spec:
+replicas: 5
+selector:
+matchLabels:
+  app: demo-deployment
+template:
+metadata:
+  labels:
+    app: demo-deployment
+spec:
+  containers:
+  - image: gcr.io/google-samples/node-hello:1.0
+    name: hello-world
+    ports:
+    - containerPort: 8080
+</code></pre>
+</li>
+<li>Crea el Despliegue:<pre><code>kubectl apply -f deployments/demo-deployment.yaml -n lab-external-service
+</code></pre>
+</li>
+<li>Verifica que los Pods están ejecutándose:<pre><code>kubectl get pods -n lab-external-service
+</code></pre>
+</li>
+<li>Verifica los detalles del Despliegue:<pre><code>kubectl get deployments demo-deployment -n lab-external-service
+kubectl describe deployment demo-deployment -n lab-external-service
+</code></pre>
+</li>
+<li>Verifica los ReplicaSets creados:<pre><code>kubectl get replicasets -n lab-external-service
+kubectl describe replicasets -n lab-external-service
+</code></pre>
+</li>
+<li>Expón el Despliegue externamente fuera del clúster:<pre><code>kubectl expose deployment demo-deployment --type NodePort --name demo-service -n lab-external-service
+</code></pre>
+</li>
+<li>Muestra la información del Servicio creado:<pre><code>kubectl get services demo-service -n lab-external-service
+kubectl describe services demo-service -n lab-external-service
+</code></pre>
+</li>
+<li>En la descripción del Servicio anterior, comprueba los Endpoints creados en la línea que comienza por <code>Endpoints</code>:<pre><code>kubectl describe services demo-service -n lab-external-service | grep Endpoints
+</code></pre>
+</li>
+<li>Puedes comprobar que dichas IPs corresponden a los Pods del Despliegue:<pre><code>kubectl get pods -o wide -n lab-external-service
+</code></pre>
+</li>
+<li>Vuelve a comprobar el Servicio y apunta el valor del puerto del servicio, [PUERTO], en la línea <code>NodePort</code>:<pre><code>kubectl describe services demo-service -n lab-external-service | grep NodePort
+</code></pre>
+<ol type="1">
+<li>Encuentra la IP externa de uno de los Nodos y apúntala, [IP_NODO]:<br>&#34;`</li>
+</ol>
+</li>
+</ol>
+<p>gcloud compute instances list</p>
+<pre><code>1. Comprueba la respuesta del Servicio:
+</code></pre>
+<p>curl http://[IP_NODO]:[PUERTO]</p>
+<pre><code>1. Elimina el Servicio y recréalo como LoadBalancer:
+</code></pre>
+<p>kubectl delete service demo-service -n lab-external-service</p>
+<p>kubectl expose deployment demo-deployment –type LoadBalancer –name demo-service -n lab-external-service</p>
+<pre><code>1. Tardará unos minutos en crear un balanceador de carga y asginarle una IP externa. Vigila sus detalles hasta que la IP cambie de `PENDING` a una dirección IP (ésto puede tardar hasta 4 minutos):
+</code></pre>
+<p>kubectl get service demo-service -n lab-external-service -w</p>
+<pre><code>1. Cancela el comando de &#34;watch&#34; con `CTRL + C`.
+
+1. Comprueba la respuesta del Servicio de nuevo:
+</code></pre>
+<p>curl http://[IP_EXTERNA_LB]:8080</p>
+<pre><code>## Para terminar
+
+### Eliminar los recursos usados
+Elimina el namespace, lo cual eliminará todos los recursos:
+</code></pre>
+<p>kubectl delete namespace lab-external-service<br>&#34;`</p>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Desplegar una aplicación con múltiples réplicas</li>
+<li>Crear un servicio de tipo NodePort</li>
+<li>Crear un servicio de tipo LoadBalancer</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

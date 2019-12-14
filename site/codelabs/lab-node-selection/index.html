@@ -1,0 +1,164 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Asignar Pods a Nodos concretos</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-node-selection"
+                  title="Asignar Pods a Nodos concretos"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo añadir etiquetas a un Nodo</li>
+<li>Cómo crear un Pod en un tipo de Nodo específico</li>
+<li>Cómo crear un Pod en un Nodo en concreto</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-node-selection
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Añadir etiquetas a Nodos" duration="0">
+        <p>Podemos añadir etiquetas a Nodos de la misma forma que a cualquier otro objeto en K8s, permitiéndonos así referenciarlo en el futuro.</p>
+<ol type="1">
+<li>Lista los Nodos disponibles en tu clúster y sus etiquetas por defecto:<pre><code>kubectl get nodes --show-labels
+</code></pre>
+<em>¿Qué etiquetas asigna K8s por defecto a estos Nodos?</em></li>
+<li>Elige uno de los Nodos con nombre <code>[NOMBRE_NODO]</code> y añádele una etiqueta:<pre><code>kubectl label nodes [NOMBRE_NODO] disktype=ssd
+</code></pre>
+</li>
+<li>Verifica que la etiqueta se ha asignado correctamente:<pre><code>kubectl get nodes [NOMBRE_NODO] --show-labels
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crea un Pod en un tipo de Nodo específico" duration="0">
+        <p>Vamos a crear un Pod en un tipo de Nodo específico, usando una etiqueta asignada al Nodo, <code>disktype=ssd</code>.</p>
+<ol type="1">
+<li>Crea el archivo <code>pods/pod-node-selection.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+name: nginx
+labels:
+env: test
+spec:
+containers:
+- name: nginx
+image: nginx
+imagePullPolicy: IfNotPresent
+nodeSelector:
+disktype: ssd       
+</code></pre>
+</li>
+<li>Crea el Pod:<pre><code>kubectl apply -f pods/pod-node-selection.yaml -n lab-node-selection
+</code></pre>
+</li>
+<li>Verifica que está ejecutándose en el Nodo correcto:<pre><code>kubectl get pods nginx -n lab-node-selection -o wide
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crea un Pod en un Nodo en concreto" duration="0">
+        <p>En este caso vamos a crear un Pod en un Nodo en concreto, usando el nombre del Nodo.</p>
+<ol type="1">
+<li>Vuelve a listar los Nodos disponibles y escoge uno de ellos:<pre><code>kubectl get nodes
+</code></pre>
+</li>
+<li>Crea el archivo <code>pods/pod-node-selection2.yaml</code> con este manifiesto, sustituyendo <code>[NOMBRE_NODO]</code> por el nombre del Nodo seleccionado:<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+name: nginx-2
+labels:
+env: test
+spec:
+containers:
+- name: nginx
+image: nginx
+imagePullPolicy: IfNotPresent
+nodeName: [NOMBRE_NODO]
+</code></pre>
+</li>
+<li>Crea el Pod:<pre><code>kubectl apply -f pods/pod-node-selection2.yaml -n lab-node-selection
+</code></pre>
+</li>
+<li>Verifica que está ejecutándose en el Nodo correcto:<pre><code>kubectl get pods nginx-2 -n lab-node-selection -o wide
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina el namespace, lo cual eliminará todos los recursos:</p>
+<pre><code>kubectl delete namespace lab-node-selection
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo añadir etiquetas a un Nodo</li>
+<li>Cómo crear un Pod en un tipo de Nodo específico</li>
+<li>Cómo crear un Pod en un Nodo en concreto</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

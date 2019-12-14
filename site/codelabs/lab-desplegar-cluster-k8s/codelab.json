@@ -1,0 +1,24 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2019-12-14T12:01:42+01:00",
+  "id": "lab-desplegar-cluster-k8s",
+  "duration": 0,
+  "title": "Desplegar clúster de K8s",
+  "summary": "Desplegar un cluster de K8s en GKE",
+  "source": "lab-k8s-cluster.md",
+  "theme": "",
+  "status": [
+    "published"
+  ],
+  "category": [
+    "introduction-to-k8s"
+  ],
+  "tags": [
+    "web"
+  ],
+  "feedback": "https://www.vectoritcgroup.com",
+  "url": "lab-desplegar-cluster-k8s"
+}

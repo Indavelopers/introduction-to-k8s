@@ -1,0 +1,236 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Configurar Calidad del Servicio para los Pods</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-quality-of-service"
+                  title="Configurar Calidad del Servicio para los Pods"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo configurar un Pod con una Calidad de Servicio de &#34;garantizado&#34;</li>
+<li>Cómo configurar un Pod con una Calidad de Servicio de &#34;burstable/flexible&#34;</li>
+<li>Cómo configurar un Pod con una Calidad de Servicio de &#34;mejor esfuerzo&#34;</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-quality-of-service
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Asignar la Calidad de Servicio de &#34;garantizado&#34; a un Pod" duration="0">
+        <p>Cuando K8s crea un Pod, le asigna una de las siguientes clases de Calidad de Servicio (QoS):</p>
+<ol type="1">
+<li>Garantizado</li>
+<li>&#34;Burstable&#34;/flexible</li>
+<li>&#34;Best effort&#34;/Mejor esfuerzo</li>
+</ol>
+<p>Para obtener la clase de QoS de &#34;garantizado&#34; para un Pod, cada Contenedor del mismo:</p>
+<ol type="1">
+<li>Debe tener una petición y límite de memoria especificada, y deben coincidir.</li>
+<li>Debe tener una petición y límite de CPU especificada, y deben coincidir.</li>
+</ol>
+<p>Para crear un Pod con dicha clase de QoS:</p>
+<ol type="1">
+<li>Crea el archivo <code>pods/qos-pod-guaranteed.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+name: qos-demo-guaranteed
+spec:
+containers:
+- name: qos-demo-ctr
+image: nginx
+resources:
+  limits:
+    memory: &#34;200Mi&#34;
+    cpu: &#34;700m&#34;
+  requests:
+    memory: &#34;200Mi&#34;
+    cpu: &#34;700m&#34;
+</code></pre>
+</li>
+<li>Crea el Pod:<pre><code>kubectl apply -f pods/qos-pod-guaranteed.yaml -n lab-quality-of-service
+</code></pre>
+</li>
+<li>Verifica que está ejecutándose:<pre><code>kubectl get pods -n lab-quality-of-service
+</code></pre>
+</li>
+<li>Comprueba las métricas de uso de recursos del Pod:<pre><code>kubectl top pod qos-demo-guaranteed -n lab-quality-of-service
+</code></pre>
+</li>
+<li>Comprueba la clase de QoS asignada:<pre><code>kubectl get pods qos-demo-guaranteed -n lab-quality-of-service -o yaml
+</code></pre>
+</li>
+</ol>
+<p>Busca la línea que comienza por &#34;qosClass&#34;</p>
+<pre><code>kubectl get pods qos-demo-guaranteed -n lab-quality-of-service -o yaml | grep qosClass
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Asignar la Calidad de Servicio de &#34;burstable&#34; a un Pod" duration="0">
+        <p>Un Pod obtendrá la clase de QoS de &#34;burstable&#34; si:</p>
+<ol type="1">
+<li>No cumple los criterios para la clase de QoS de &#34;garantizado&#34;.</li>
+<li>Al menos un Contenedor en el Pod tiene una petición de memoria o CPU.</li>
+</ol>
+<p>Para crear un Pod con dicha clase de QoS:</p>
+<ol type="1">
+<li>Crea el archivo <code>pods/qos-pod-burstable.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+name: qos-demo-burstable
+spec:
+containers:
+- name: qos-demo-ctr
+image: nginx
+resources:
+  limits:
+    memory: &#34;200Mi&#34;
+  requests:
+    memory: &#34;100Mi&#34;
+</code></pre>
+</li>
+<li>Crea el Pod:<pre><code>kubectl apply -f pods/qos-pod-burstable.yaml -n lab-quality-of-service
+</code></pre>
+</li>
+<li>Verifica que está ejecutándose:<pre><code>kubectl get pods -n lab-quality-of-service
+</code></pre>
+</li>
+<li>Comprueba las métricas de uso de recursos del Pod:<pre><code>kubectl top pod qos-demo-burstable -n lab-quality-of-service
+</code></pre>
+</li>
+<li>Comprueba la clase de QoS asignada:<pre><code>kubectl get pods qos-demo-burstable -n lab-quality-of-service -o yaml
+</code></pre>
+</li>
+</ol>
+<p>Busca la línea que comienza por &#34;qosClass&#34;</p>
+<pre><code>kubectl get pods qos-demo-burstable -n lab-quality-of-service -o yaml | grep qosClass
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Asignar la Calidad de Servicio de &#34;mejor esfuerzo&#34; a un Pod" duration="0">
+        <p>Un Pod obtendrá la clase de QoS de &#34;mejor esfuerzo&#34; si no cumple los requisitos para el resto de clases, ésto es, si sus Contenedores no tienen ninguna petición o límite de recursos.</p>
+<p>Para crear un Pod con dicha clase de QoS:</p>
+<ol type="1">
+<li>Crea el archivo <code>pods/qos-pod-besteffort.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+name: qos-demo-besteffort
+spec:
+containers:
+- name: qos-demo-ctr
+image: nginx
+</code></pre>
+</li>
+<li>Crea el Pod:<pre><code>kubectl apply -f pods/qos-pod-besteffort.yaml -n lab-quality-of-service
+</code></pre>
+</li>
+<li>Verifica que está ejecutándose:<pre><code>kubectl get pods -n lab-quality-of-service
+</code></pre>
+</li>
+<li>Comprueba las métricas de uso de recursos del Pod:<pre><code>kubectl top pod qos-demo-besteffort -n lab-quality-of-service
+</code></pre>
+</li>
+<li>Comprueba la clase de QoS asignada:<pre><code>kubectl get pods qos-demo-besteffort -n lab-quality-of-service -o yaml
+</code></pre>
+</li>
+</ol>
+<p>Busca la línea que comienza por &#34;qosClass&#34;</p>
+<pre><code>kubectl get pods qos-demo-besteffort -n lab-quality-of-service -o yaml | grep qosClass
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Reto" duration="0">
+        <p><em>Crea un Pod con 2 Contenedores con la siguiente configuración. ¿Qué clase de QoS tendrá asignada?</em></p>
+<p>Archivo <code>pods/qos-pod-2containers.yaml</code>:</p>
+<pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-demo-challenge
+spec:
+  containers:
+  - name: qos-demo-ctr-1
+    image: nginx
+    resources:
+      requests:
+        memory: &#34;200Mi&#34;
+  - name: qos-demo-ctr-2
+    image: redis
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina el namespace, lo cual eliminará todos los recursos:</p>
+<pre><code>kubectl delete namespace lab-quality-of-service
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo configurar un Pod con una Calidad de Servicio de &#34;garantizado&#34;</li>
+<li>Cómo configurar un Pod con una Calidad de Servicio de &#34;burstable/flexible&#34;</li>
+<li>Cómo configurar un Pod con una Calidad de Servicio de &#34;mejor esfuerzo&#34;</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

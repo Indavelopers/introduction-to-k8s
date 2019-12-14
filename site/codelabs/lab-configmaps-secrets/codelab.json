@@ -1,0 +1,24 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2019-12-14T20:33:04+01:00",
+  "id": "lab-configmaps-secrets",
+  "duration": 0,
+  "title": "Crear ConfigMaps y Secretos",
+  "summary": "Crear configMaps y Secrets",
+  "source": "lab-configmaps-secrets.md",
+  "theme": "",
+  "status": [
+    "published"
+  ],
+  "category": [
+    "introduction-to-k8"
+  ],
+  "tags": [
+    "web"
+  ],
+  "feedback": "https://www.vectoritcgroup.com",
+  "url": "lab-configmaps-secrets"
+}
