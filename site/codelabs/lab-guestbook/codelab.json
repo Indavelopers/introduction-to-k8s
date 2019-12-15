@@ -3,12 +3,12 @@
   "format": "html",
   "prefix": "https://storage.googleapis.com",
   "mainga": "UA-49880327-14",
-  "updated": "2019-12-14T22:30:06+01:00",
-  "id": "lab-ingress",
+  "updated": "2019-12-15T14:26:10+01:00",
+  "id": "lab-guestbook",
   "duration": 0,
-  "title": "Usar Ingress como balanceador de carga L7 externo",
-  "summary": "Usar Ingress como LB L7 externo",
-  "source": "lab-ingress.md",
+  "title": "Desplegar una app de libro de visitas en PHP con Redis",
+  "summary": "Despliega una app de libro de visitas en PHP con Redis",
+  "source": "lab-guestbook.md",
   "theme": "",
   "status": [
     "published"
@@ -20,5 +20,5 @@
     "web"
   ],
   "feedback": "https://www.vectoritcgroup.com",
-  "url": "lab-ingress"
+  "url": "lab-guestbook"
 }

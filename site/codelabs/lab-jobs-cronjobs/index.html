@@ -1,0 +1,168 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Desplegando Jobs y CronJobs</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-jobs-cronjobs"
+                  title="Desplegando Jobs y CronJobs"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo desplegar Jobs</li>
+<li>Cómo desplegar CronJobs</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-jobs-cronjobs
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Desplegar un Job" duration="0">
+        <p>Vamos a desplegar un Job con una tarea contenerizada determinada.</p>
+<ol type="1">
+<li>Crea el archivo <code>jobs/demo-job.yaml</code> con este manifiesto:<pre><code>apiVersion: batch/v1
+kind: Job
+metadata:
+name: demo-job
+spec:
+template:
+metadata:
+  name: demo-job
+spec:
+  containers:
+  - name: pi
+    image: perl
+    command: [&#34;perl&#34;]
+    args: [&#34;-Mbignum=bpi&#34;, &#34;-wle&#34;, &#34;print bpi(2000)&#34;]
+  restartPolicy: Never
+</code></pre>
+</li>
+<li>Crea el Job:<pre><code>kubectl apply -f jobs/demo-job.yaml -n lab-jobs-cronjobs
+</code></pre>
+</li>
+<li>Verifica que los Pods están ejecutándose:<pre><code>kubectl get pods -n lab-jobs-cronjobs
+</code></pre>
+</li>
+<li>Espera unos segundos y comprueba como el estado cambia a <code>Completed</code> cuando el Job finaliza su ejecución:<pre><code>kubectl get pods -n lab-jobs-cronjobs -w
+</code></pre>
+Cancela el comando &#34;watch&#34; con <code>CTRL + C</code>.</li>
+<li>Verifica los detalles del Job y su estado:<pre><code>kubectl describe jobs demo-job -n lab-jobs-cronjobs
+</code></pre>
+Cuando el Job acaba, el controlador elimina los Pods creados, pero no elimina el objeto Job, para poder comprobar sus logs y estado.</li>
+<li>Encuentra el nombre del Pod creado por el Job y apúntalo, [NOMBRE_POD]:<pre><code>kubectl get pods -n lab-jobs-cronjobs
+</code></pre>
+</li>
+<li>Recupera los logs del Job:<pre><code>kubectl logs [NOMBRE_POD] -n lab-jobs-cronjobs
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Desplegar un CronJob" duration="0">
+        <p>Vamos a desplegar un CronJob con una tarea cron contenerizada determinada.</p>
+<ol type="1">
+<li>Crea el archivo <code>jobs/demo-cronjob.yaml</code> con este manifiesto:<pre><code>apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+name: demo-cronjob
+spec:
+schedule: &#34;*/1 * * * *&#34;
+jobTemplate:
+spec:
+  template:
+    spec:
+      containers:
+      - name: hello-world
+        image: busybox
+        args:
+        - /bin/sh
+        - -c
+        - date; echo &#34;Hello world from a CronJob!&#34;
+      restartPolicy: OnFailure
+</code></pre>
+</li>
+<li>Crea el CronJob:<pre><code>kubectl apply -f jobs/demo-cronjob.yaml -n lab-jobs-cronjobs
+</code></pre>
+</li>
+<li>Verifica que el CronJob ha sido creado correctamente:<pre><code>kubectl get jobs -n lab-jobs-cronjobs
+</code></pre>
+</li>
+<li>Verifica los detalles del CronJob y su estado:<pre><code>kubectl describe jobs demo-cronjob -n lab-jobs-cronjobs
+</code></pre>
+Al desplegarse, el CronJob crea un Pod para ejecutar su tarea cron. Encuentra el nombre del Pod creado en el anterior comando y apúntalo, [NOMBRE_POD]</li>
+<li>Recupera los logs del Pod creado por el CronJob:<pre><code>kubectl logs [NOMBRE_POD] -n lab-jobs-cronjobs
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina el namespace, lo cual eliminará todos los recursos:</p>
+<pre><code>kubectl delete namespace lab-jobs-cronjobs
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo desplegar Jobs</li>
+<li>Cómo desplegar CronJobs</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

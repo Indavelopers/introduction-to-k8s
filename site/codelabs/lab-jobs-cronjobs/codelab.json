@@ -3,12 +3,12 @@
   "format": "html",
   "prefix": "https://storage.googleapis.com",
   "mainga": "UA-49880327-14",
-  "updated": "2019-12-14T22:30:06+01:00",
-  "id": "lab-ingress",
+  "updated": "2019-12-15T12:53:03+01:00",
+  "id": "lab-jobs-cronjobs",
   "duration": 0,
-  "title": "Usar Ingress como balanceador de carga L7 externo",
-  "summary": "Usar Ingress como LB L7 externo",
-  "source": "lab-ingress.md",
+  "title": "Desplegando Jobs y CronJobs",
+  "summary": "Desplegando Jobs y CronJobs",
+  "source": "lab-jobs-cronjobs.md",
   "theme": "",
   "status": [
     "published"
@@ -20,5 +20,5 @@
     "web"
   ],
   "feedback": "https://www.vectoritcgroup.com",
-  "url": "lab-ingress"
+  "url": "lab-jobs-cronjobs"
 }

@@ -1,0 +1,162 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Desplegando charts de Helm</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-helm"
+                  title="Desplegando charts de Helm"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo instalar Helm en K8s</li>
+<li>Cómo desplegar SW y paquetes con charts de Helm</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Instalar Helm" duration="0">
+        <p>Vamos a descargar el binario de Helm y configurar la cuenta de servicio necesaria e inicializarlo.</p>
+<ol type="1">
+<li>Descarga el script de instalación de Helm:<pre><code>curl -LO https://git.io/get_helm.sh
+</code></pre>
+</li>
+<li>Haz el script ejecutable:<pre><code>chmod 700 get_helm.sh
+</code></pre>
+</li>
+<li>Ejecuta el script de instalación:<pre><code>./get_helm.sh
+</code></pre>
+</li>
+<li>Asocia tu cuenta al rol de cluster-admin en el clúster:<pre><code>kubectl create clusterrolebinding user-admin-binding --clusterrole cluster-admin --user $(gcloud config get-value account)
+</code></pre>
+</li>
+<li>Crea una cuenta de servicio para Tiller. Helm es la herramienta de cliente y Tiller la de servidor para Helm:<pre><code>kubectl create serviceaccount tiller -n kube-system
+</code></pre>
+</li>
+<li>Asocia la cuenta de servicio de Tiller al rol de cluster-admin:<pre><code>kubectl  create clusterrolebinding tiller-admin-binding --clusterrole cluster-admin --serviceaccount kube-system:tiller
+</code></pre>
+</li>
+<li>Inicializa Helm con la cuenta de servicio de Tiller (ésto puede tardar unos minutos):<pre><code>helm init --service-account tiller
+</code></pre>
+</li>
+<li>Verifica la instalación de Helm:<pre><code>helm version
+</code></pre>
+</li>
+<li>Actualiza los repositorios de charts de Helm:<pre><code>helm repo update
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Despliega Redis con una chart de Helm" duration="0">
+        <ol type="1">
+<li>Inspecciona las plantillas de la chart de Helm antes de desplegarlas:<pre><code>helm install stable/redis --dry-run --debug
+</code></pre>
+</li>
+<li>Usando una chart de Helm, despliega una instancia de <a href="https://github.com/helm/charts/tree/master/stable/redis" target="_blank">Redis</a> en tu clúster de K8s:<pre><code>helm install stable/redis
+</code></pre>
+</li>
+<li>Comprueba los recursos desplegados por Helm:<pre><code>kubectl get services
+kubectl get statefulsets
+kubectl get configmaps
+kubectl get secrets
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Comprueba el despliegue de Redis" duration="0">
+        <ol type="1">
+<li>Anota la IP del servicio del máster de Redis en una variable de entorno:<pre><code>export IP_REDIS=$(kubectl get services -l app=redis -o json | jq -r &#39;.items[].spec | select(.selector.role==&#34;master&#34;)&#39; | jq -r &#39;.clusterIP&#39;)
+echo $IP_REDIS
+</code></pre>
+</li>
+<li>Anota la contraseña del máster de Redis en una variable de entorno:<pre><code>export PASSWORD_REDIS=$(kubectl get secret -l app=redis -o jsonpath=&#34;{.items[0].data.redis-password}&#34;  | base64 --decode)
+echo $PASSWORD_REDIS
+</code></pre>
+</li>
+<li>Ejecuta una sesión shell en un Pod temporal para comprobar el despliegue de Redis:<pre><code>kubectl run redis-test-pod --rm -it --env REDIS_PW=$PASSWORD_REDIS --env REDIS_IP=$IP_REDIS --image docker.io/bitnami/redis:4.0.12 -- bash
+</code></pre>
+</li>
+<li>En la sesión shell interactiva, conéctate al clúster Redis:<pre><code>redis-cli -h $REDIS_IP -a $REDIS_PW
+</code></pre>
+</li>
+<li>Establece una clave de prueba y su valor:<pre><code>set demo-key demo-value
+</code></pre>
+</li>
+<li>Recupera el valor de la clave de prueba:<pre><code>get demo-key
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina los recursos creados por Helm</p>
+<pre><code>helm delete --purge redis
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo instalar Helm en K8s</li>
+<li>Cómo desplegar SW y paquetes con charts de Helm</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

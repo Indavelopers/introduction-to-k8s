@@ -1,0 +1,341 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Desplegar una app de libro de visitas en PHP con Redis</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-guestbook"
+                  title="Desplegar una app de libro de visitas en PHP con Redis"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo desplegar una app con un frontend de libro de visitas en PHP con un Servicio de balanceador de carga</li>
+<li>Cómo desplegar un backend con un clúster de Redis con un Servicio interno</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-guestbook
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Desplegar el clúster de Redis" duration="0">
+        <p>Vamos a desplegar un clúster de Redis con un despliegue para el máster y otro para los trabajadores.</p>
+<ol type="1">
+<li>Crea el archivo <code>deployments/demo-guestbook-redis-master.yaml</code> con el siguiente manifiesto:<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: demo-redis-master
+labels:
+app: redis
+spec:
+selector:
+matchLabels:
+  app: redis
+  role: master
+  tier: backend
+replicas: 1
+template:
+metadata:
+  labels:
+    app: redis
+    role: master
+    tier: backend
+spec:
+  containers:
+  - name: master
+    image: k8s.gcr.io/redis:e2e
+    resources:
+      requests:
+        cpu: 100m
+        memory: 100Mi
+    ports:
+    - containerPort: 6379
+</code></pre>
+</li>
+<li>Crea el Despliegue:<pre><code>kubectl apply -f deployments/demo-guestbook-redis-master.yaml -n lab-guestbook
+</code></pre>
+</li>
+<li>Verifica que el Despliegue ha sido creado correctamente y anota el nombre del Pod, <code>[NOMBRE_POD]</code>:<pre><code>kubectl get pods -n lab-guestbook
+</code></pre>
+</li>
+<li>Comprueba los logs del Pod del máster de Redis:<pre><code>kubectl logs -f [NOMBRE_POD] -n lab-guestbook
+</code></pre>
+</li>
+<li>Verifica los detalles del Despliegue:<pre><code>kubectl describe deployment demo-redis-master -n lab-guestbook
+</code></pre>
+</li>
+</ol>
+<h2 is-upgraded>Desplegar el Servicio interno para el máster de Redis</h2>
+<ol type="1">
+<li>Crea el archivo <code>services/demo-guestbook-redis-master.yaml</code> con el siguiente manifiesto:<pre><code>apiVersion: v1
+kind: Service
+metadata:
+name: demo-redis-master
+labels:
+app: redis
+role: master
+tier: backend
+spec:
+ports:
+- port: 6379
+targetPort: 6379
+selector:
+app: redis
+role: master
+tier: backend
+</code></pre>
+</li>
+<li>Crea el Servicio:<pre><code>kubectl apply -f services/demo-guestbook-redis-master.yaml -n lab-guestbook
+</code></pre>
+</li>
+<li>Verifica que el Servicio ha sido creado correctamente:<pre><code>kubectl get services -n lab-guestbook
+</code></pre>
+</li>
+<li>Verifica los detalles del Servicio:<pre><code>kubectl describe services demo-redis-master -n lab-guestbook
+</code></pre>
+</li>
+</ol>
+<h2 is-upgraded>Desplegar el Despligue de los trabajadores de Redis</h2>
+<ol type="1">
+<li>Crea el archivo <code>deployments/demo-guestbook-redis-slaves.yaml</code> con el siguiente manifiesto:<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: demo-redis-slaves
+labels:
+app: redis
+spec:
+selector:
+matchLabels:
+  app: redis
+  role: slave
+  tier: backend
+replicas: 2
+template:
+metadata:
+  labels:
+    app: redis
+    role: slave
+    tier: backend
+spec:
+  containers:
+  - name: slave
+    image: gcr.io/google_samples/gb-redisslave:v3
+    resources:
+      requests:
+        cpu: 100m
+        memory: 100Mi
+    env:
+    - name: GET_HOSTS_FROM
+      value: dns
+    ports:
+    - containerPort: 6379
+</code></pre>
+</li>
+<li>Crea el Despliegue:<pre><code>kubectl apply -f deployments/demo-guestbook-redis-slaves.yaml -n lab-guestbook
+</code></pre>
+</li>
+<li>Verifica que el Despliegue ha sido creado correctamente:<pre><code>kubectl get pods -n lab-guestbook
+</code></pre>
+Verás las 2 réplicas de los trabajadores y 1 réplica del máster de Redis.</li>
+<li>Verifica los detalles del Despliegue:<pre><code>kubectl describe deployment demo-redis-slaves -n lab-guestbook
+</code></pre>
+</li>
+</ol>
+<h2 is-upgraded>Desplegar el Servicio interno para el máster de Redis</h2>
+<ol type="1">
+<li>Crea el archivo <code>services/demo-guestbook-redis-slaves.yaml</code> con el siguiente manifiesto:<pre><code>apiVersion: v1
+kind: Service
+metadata:
+name: demo-redis-slaves
+labels:
+app: redis
+role: slave
+tier: backend
+spec:
+ports:
+- port: 6379
+selector:
+app: redis
+role: slave
+tier: backend
+</code></pre>
+</li>
+<li>Crea el Servicio:<pre><code>kubectl apply -f services/demo-guestbook-redis-slaves.yaml -n lab-guestbook
+</code></pre>
+</li>
+<li>Verifica que el Servicio ha sido creado correctamente:<pre><code>kubectl get services -n lab-guestbook
+</code></pre>
+Verás el Servicio del máster y los trabajadores de Redis.</li>
+<li>Verifica los detalles del Servicio:<pre><code>kubectl describe services demo-redis-slaves -n lab-guestbook
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Despliega el frontend del libro de visitas" duration="0">
+        <p>El frontend de la aplicación del libro de visitras está escrito en PHP y está configurado para usar el máster de Redis para escribir datos y los trabajadores de Redis para las lecturas.</p>
+<ol type="1">
+<li>Crea el archivo <code>deployments/demo-guestbook-frontend.yaml</code> con el siguiente manifiesto:<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: demo-frontend
+labels:
+app: guestbook
+spec:
+selector:
+matchLabels:
+  app: guestbook
+  tier: frontend
+replicas: 3
+template:
+metadata:
+  labels:
+    app: guestbook
+    tier: frontend
+spec:
+  containers:
+  - name: php-redis
+    image: gcr.io/google-samples/gb-frontend:v4
+    resources:
+      requests:
+        cpu: 100m
+        memory: 100Mi
+    env:
+    - name: GET_HOSTS_FROM
+      value: dns
+    ports:
+    - containerPort: 80
+</code></pre>
+</li>
+<li>Crea el Despliegue:<pre><code>kubectl apply -f deployments/demo-guestbook-frontend.yaml -n lab-guestbook
+</code></pre>
+</li>
+<li>Verifica que el Despliegue ha sido creado correctamente:<pre><code>kubectl get pods -n lab-guestbook
+</code></pre>
+Verás las 2 réplicas de los trabajadores y 1 réplica del máster de Redis.</li>
+<li>Verifica los detalles del Despliegue:<pre><code>kubectl describe deployment demo-frontend -n lab-guestbook
+</code></pre>
+</li>
+</ol>
+<h2 is-upgraded>Desplegar el Servicio para el frontend</h2>
+<ol type="1">
+<li>Crea el archivo <code>services/demo-guestbook-frontend.yaml</code> con el siguiente manifiesto:<pre><code>apiVersion: v1
+kind: Service
+metadata:
+name: demo-frontend
+labels:
+app: guestbook
+tier: frontend
+spec:
+type: LoadBalancer
+ports:
+- port: 80
+selector:
+app: guestbook
+tier: frontend
+</code></pre>
+</li>
+<li>Crea el Servicio:<pre><code>kubectl apply -f services/demo-guestbook-frontend.yaml -n lab-guestbook
+</code></pre>
+</li>
+<li>Verifica que el Servicio ha sido creado correctamente y anota su IP externa, <code>[IP_EXTERNA]</code> (puede tardar hasta 5 minutos):<pre><code>kubectl get services -n lab-guestbook -w
+</code></pre>
+Verás el Servicio del máster y los trabajadores de Redis, junto al del frontend.</li>
+<li>Verifica los detalles del Servicio:<pre><code>kubectl describe services demo-frontend -n lab-guestbook
+</code></pre>
+</li>
+<li>Comprueba la respuesta de la aplicación web en una pestaña de tu navegador o con <code>curl</code>:<pre><code>https://[IP_EXTERNA]
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Escalar el frontend" duration="0">
+        <p>Escalar el nº de réplicas del frontend es fácil, puesto que la aplicación se define como un único punto de entrada, el Servicio, que redirige las peticiones a diferentes réplicas del frontend.</p>
+<ol type="1">
+<li>Escala el número de Pods del frontend:<pre><code>kubectl scale deployment frontend --replicas 5 -n lab-guestbook
+</code></pre>
+</li>
+<li>Comprueba el número de Pods del frontend desplegados:<pre><code>kubectl get pods -n lab-guestbook -l app=guestbook
+</code></pre>
+</li>
+<li>Para escalarlo de nuevo hacia abajo, usa el mismo comando:<pre><code>kubectl scale deployment frontend --replicas 3 -n lab-guestbook
+</code></pre>
+</li>
+<li>Comprueba el número de Pods del frontend desplegados:<pre><code>kubectl get pods -n lab-guestbook -l app=guestbook
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina el namespace, lo cual eliminará todos los recursos:</p>
+<pre><code>kubectl delete namespace lab-guestbook
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo desplegar una app con un frontend de guestbook en PHP con un Servicio de balanceador de carga</li>
+<li>Cómo desplegar un backend con un clúster de Redis con un Servicio interno</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>
