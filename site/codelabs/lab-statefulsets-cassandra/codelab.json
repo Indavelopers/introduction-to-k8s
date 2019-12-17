@@ -3,12 +3,12 @@
   "format": "html",
   "prefix": "https://storage.googleapis.com",
   "mainga": "UA-49880327-14",
-  "updated": "2019-12-17T20:42:34+01:00",
-  "id": "lab-persistent-volumes",
+  "updated": "2019-12-17T20:05:17+01:00",
+  "id": "lab-statefulsets-cassandra",
   "duration": 0,
-  "title": "Configurar un Pod para usar un Volumen Persistente como almacenamiento",
-  "summary": "Configurar un Pod para usar un Volumen",
-  "source": "lab-persistent-volumes.md",
+  "title": "Desplegando Cassandra con un StatefulSet",
+  "summary": "Desplegando Cassandra con un StatefulSet",
+  "source": "lab-statefulsets-cassandra.md",
   "theme": "",
   "status": [
     "published"
@@ -20,5 +20,5 @@
     "web"
   ],
   "feedback": "https://www.vectoritcgroup.com",
-  "url": "lab-persistent-volumes"
+  "url": "lab-statefulsets-cassandra"
 }

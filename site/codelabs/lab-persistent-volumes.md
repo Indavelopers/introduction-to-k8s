@@ -49,7 +49,7 @@ kubectl create namespace lab-persistent-volumes
 Necesitamos crear un disco persistente de Compute Engine previamente para que K8s pueda montarlo en un Nodo:
 
 ```
-gcloud compute disks create pd-disk-1 --size 15Gb --zone europe-west2-c
+gcloud compute disks create pd-disk-1 --size 15Gb --zone europe-west1-c
 ```
 
 ## Crea un Volumen Persistente
@@ -178,7 +178,7 @@ kubectl delete namespace lab-persistent-volumes
 
 1. Elimina el disco persistente creado:
 ```
-gcloud compute disks delete pd-disk-1 --zone europe-west2-c
+gcloud compute disks delete pd-disk-1 --zone europe-west1-c
 ```
 
 En esta práctica hemos visto cómo:

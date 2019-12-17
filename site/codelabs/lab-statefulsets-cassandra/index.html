@@ -1,0 +1,262 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Desplegando Cassandra con un StatefulSet</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-statefulsets-cassandra"
+                  title="Desplegando Cassandra con un StatefulSet"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Crear un Servicio &#34;headless&#34; para Cassandra</li>
+<li>Desplegar un anillo de Cassandra con un StatefulSet y validarlo</li>
+<li>Modificar el StatefulSet</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-statefulsets-cassandra
+</code></pre>
+<h2 is-upgraded>Configuración de Cassandra</h2>
+<p>Vamos a desplegar un anillo de [Cassandra]() usando la imagen <a href="https://github.com/kubernetes/examples/blob/master/cassandra/image/Dockerfile" target="_blank">gcr.io/google-samples/cassandra:v13</a> de Google Container Registry, basada en Debian e incluyendo OpenJDK 8.</p>
+<p>La imagen incluye una instalación estándar de Cassandra del repositorio de Debian que puedes configurar con las siguientes variables de entorno, insertadas en <code>cassandra.yaml</code>:</p>
+<ul>
+<li>CASSANDRA_CLUSTER_NAME = ‘Test Cluster&#39;</li>
+<li>CASSANDRA_NUM_TOKENS = 32</li>
+<li>CASSANDRA_RPC_ADDRESS = 0.0.0.0</li>
+</ul>
+<p><em>Se muestran sus valores por defecto</em>.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Creando un Servicio &#34;headless&#34; para Cassandra" duration="0">
+        <p>Este Servicio es usado para resolución de DNS entre los Pods de Cassandra y sus clientes en el clúster de K8s.</p>
+<ol type="1">
+<li>Crea el archivo <code>services/cassandra.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Service
+metadata:
+labels:
+app: cassandra
+name: cassandra
+spec:
+clusterIP: None
+ports:
+- port: 9042
+selector:
+app: cassandra
+</code></pre>
+</li>
+<li>Crea el Servicio:<pre><code>kubectl apply -f services/cassandra.yaml -n lab-statefulsets-cassandra
+</code></pre>
+</li>
+<li>Verifica que se ha creado correctamente:<pre><code>kubectl get services -n lab-statefulsets-cassandra
+</code></pre>
+</li>
+<li>Verifica los detalles del Servicio:<pre><code>kubectl describe services cassandra -n lab-statefulsets-cassandra
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Creando un anillo de Cassandra" duration="0">
+        <p>Usaremos un StatefulSet para desplegar un anillo con 3 Pods de Cassandra.</p>
+<p>También declararemos una StorageClass para los volúmenes en el mismo manifiesto.</p>
+<ol type="1">
+<li>Crea el archivo <code>deployments/cassandra.yaml</code> con este manifiesto:<pre><code>apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+name: cassandra
+labels:
+app: cassandra
+spec:
+serviceName: cassandra
+replicas: 3
+selector:
+matchLabels:
+  app: cassandra
+template:
+metadata:
+  labels:
+    app: cassandra
+spec:
+  terminationGracePeriodSeconds: 1800
+  containers:
+  - name: cassandra
+    image: gcr.io/google-samples/cassandra:v13
+    imagePullPolicy: Always
+    ports:
+    - containerPort: 7000
+      name: intra-node
+    - containerPort: 7001
+      name: tls-intra-node
+    - containerPort: 7199
+      name: jmx
+    - containerPort: 9042
+      name: cql
+    resources:
+      limits:
+        cpu: &#34;500m&#34;
+        memory: 1Gi
+      requests:
+        cpu: &#34;500m&#34;
+        memory: 1Gi
+    securityContext:
+      capabilities:
+        add:
+          - IPC_LOCK
+    lifecycle:
+      preStop:
+        exec:
+          command: 
+          - /bin/sh
+          - -c
+          - nodetool drain
+    env:
+      - name: MAX_HEAP_SIZE
+        value: 512M
+      - name: HEAP_NEWSIZE
+        value: 100M
+      - name: CASSANDRA_SEEDS
+        value: &#34;cassandra-0.cassandra.statefulsets-cassandra.svc.cluster.local&#34;
+      - name: CASSANDRA_CLUSTER_NAME
+        value: &#34;demo-cassandra&#34;
+      - name: CASSANDRA_DC
+        value: &#34;DC1-demo-cassandra&#34;
+      - name: CASSANDRA_RACK
+        value: &#34;Rack1-demo-cassandra&#34;
+      - name: POD_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.podIP
+    readinessProbe:
+      exec:
+        command:
+        - /bin/bash
+        - -c
+        - /ready-probe.sh
+      initialDelaySeconds: 15
+      timeoutSeconds: 5
+    volumeMounts:
+    - name: cassandra-data
+      mountPath: /cassandra_data
+volumeClaimTemplates:
+- metadata:
+  name: cassandra-data
+spec:
+  accessModes: [ &#34;ReadWriteOnce&#34; ]
+  storageClassName: fast
+  resources:
+    requests:
+      storage: 1Gi
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+name: fast
+provisioner: kubernetes.io/gce-pd
+parameters:
+type: pd-ssd
+</code></pre>
+</li>
+<li>Crea el StatefulSet y la StorageClass:<pre><code>kubectl apply -f deployments/cassandra.yaml -n lab-statefulsets-cassandra
+</code></pre>
+</li>
+<li>Verifica que se ha creado correctamente:<pre><code>kubectl get statefulsets -n lab-statefulsets-cassandra
+</code></pre>
+</li>
+<li>Verifica el estado del orden de creación de los Pods (puede tardar unos minutos en completarse):<pre><code>kubectl get pods -l app=cassandra -n lab-statefulsets-cassandra -w
+</code></pre>
+</li>
+<li>Verifica los detalles del StatefulSet:<pre><code>kubectl describe statefulsets cassandra -n lab-statefulsets-cassandra
+</code></pre>
+</li>
+<li>Usa el comando <code>nodetool</code> de Cassandra para mostrar el estado del anillo:<pre><code>kubectl exec -it cassandra-0 -n lab-statefulsets-cassandra -- nodetool status
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Modificar el StatefulSet de Cassandra" duration="0">
+        <p>Vamos a modificar el número de Pods del anillo de Cassandra.</p>
+<ol type="1">
+<li>Edita el StatefulSet con el siguiente comando:<pre><code>kubectl edit statefulsets cassandra -n lab-statefulsets-cassandra
+</code></pre>
+Se abrirá un editor por defecto.</li>
+<li>Busca la línea con el campo <code>replicas</code>, cámbialo a 4 y guarda el manifiesto.</li>
+<li>Verifica que el StatefulSet está creando una nueva réplica:<pre><code>kubectl get statefulsets cassandra -n lab-statefulsets-cassandra
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina el namespace, lo cual eliminará todos los recursos:</p>
+<pre><code>kubectl delete namespace lab-statefulsets-cassandra
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Crear un Servicio headless para Cassandra</li>
+<li>Desplegar un anillo de Cassandra con un StatefulSet y validarlo</li>
+<li>Modificar el StatefulSet</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

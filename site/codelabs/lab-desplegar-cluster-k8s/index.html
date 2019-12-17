@@ -57,10 +57,10 @@ Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &
     
       <google-codelab-step label="Desplegar un clúster de K8s" duration="0">
         <ol type="1">
-<li>Despliega un clúster de K8s en Google Kubernetes Engine:<pre><code>gcloud container clusters create lab-cluster --num-nodes 3 --zone europe-west2-c
+<li>Despliega un clúster de K8s en Google Kubernetes Engine:<pre><code>gcloud container clusters create lab-cluster --num-nodes 3 --zone europe-west1-c
 </code></pre>
 </li>
-<li>Configura el acceso a dicho clúster para kubectl:<pre><code>gcloud container clusters get-credentials lab-cluster --zone europe-west2-c
+<li>Configura el acceso a dicho clúster para kubectl:<pre><code>gcloud container clusters get-credentials lab-cluster --zone europe-west1-c
 </code></pre>
 </li>
 <li>Comprueba que estás conectado a dicho clúster:<pre><code>kubectl cluster-info

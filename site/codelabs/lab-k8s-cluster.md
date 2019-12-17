@@ -34,12 +34,12 @@ source <(kubectl completion bash)
 ## Desplegar un clúster de K8s
 1. Despliega un clúster de K8s en Google Kubernetes Engine:
 ```
-gcloud container clusters create lab-cluster --num-nodes 3 --zone europe-west2-c
+gcloud container clusters create lab-cluster --num-nodes 3 --zone europe-west1-c
 ```
 
 1. Configura el acceso a dicho clúster para kubectl:
 ```
-gcloud container clusters get-credentials lab-cluster --zone europe-west2-c
+gcloud container clusters get-credentials lab-cluster --zone europe-west1-c
 ```
 
 1. Comprueba que estás conectado a dicho clúster:

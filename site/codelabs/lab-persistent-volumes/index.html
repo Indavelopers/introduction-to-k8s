@@ -72,7 +72,7 @@ Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &
     
       <google-codelab-step label="Crea un disco" duration="0">
         <p>Necesitamos crear un disco persistente de Compute Engine previamente para que K8s pueda montarlo en un Nodo:</p>
-<pre><code>gcloud compute disks create pd-disk-1 --size 15Gb --zone europe-west2-c
+<pre><code>gcloud compute disks create pd-disk-1 --size 15Gb --zone europe-west1-c
 </code></pre>
 
 
@@ -184,7 +184,7 @@ volumes:
 <li>Elimina el namespace, lo cual eliminará todos los recursos:<pre><code>kubectl delete namespace lab-persistent-volumes
 </code></pre>
 </li>
-<li>Elimina el disco persistente creado:<pre><code>gcloud compute disks delete pd-disk-1 --zone europe-west2-c
+<li>Elimina el disco persistente creado:<pre><code>gcloud compute disks delete pd-disk-1 --zone europe-west1-c
 </code></pre>
 </li>
 </ol>

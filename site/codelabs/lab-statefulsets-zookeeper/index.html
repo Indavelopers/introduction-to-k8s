@@ -1,0 +1,366 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Desplegando Zookeeper con un StatefulSet</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-statefulsets-zookeeper"
+                  title="Desplegando Zookeeper con un StatefulSet"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo desplegar un conjunto de Zookeeper usando un StatefulSet</li>
+<li>Cómo configurar el conjunto usando ConfigMaps</li>
+<li>Cómo expandir el despliegue de servidores de Zookeeper en el conjunto</li>
+<li>Cómo usar PodDisruptionBudgets para asegurar la disponibilidad del servicio durante el mantenimiento programado</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un nuevo clúster</h2>
+<p>Vamos a crear un nuevo clúster de K8s con más recursos para poder desplegar Zookeeper:</p>
+<ol type="1">
+<li>Despliega un clúster de K8s en Google Kubernetes Engine:<pre><code>gcloud container clusters create lab-zookeeper --num-nodes 4 --machine-type n1-standard-2 --zone europe-west1-c
+</code></pre>
+</li>
+<li>Configura el acceso a dicho clúster para kubectl:<pre><code>gcloud container clusters get-credentials lab-zookeeper --zone europe-west1-c
+</code></pre>
+</li>
+<li>Comprueba que estás conectado a dicho clúster:<pre><code>kubectl cluster-info
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Configurar aprovisionamiento dinámico de almacenamiento" duration="0">
+        <p>Para configurarlo, debemos crear una StorageClass disponible en el clúster.</p>
+<ol type="1">
+<li>Crea el archivo <code>volumes/fast-storageclass.yaml</code> con este manifiesto:<pre><code>apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+name: fast
+provisioner: kubernetes.io/gce-pd
+parameters:
+type: pd-ssd
+</code></pre>
+</li>
+<li>Crea la Clase de Almacenamiento:<pre><code>kubectl apply -f volumes/fast-storageclass.yaml
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Crear un conjunto de Zookeeper" duration="0">
+        <p>Vamos a utilizar un manifiesto compuesto para desplegar múltiples objetos a la misma vez: un Servicio &#34;headless&#34;, un Servicio, un PodDisruptionBudget y un StatefulSet.</p>
+<ol type="1">
+<li>Crea el archivo <code>app/zookeeper.yaml</code> con este manifiesto:<pre><code>apiVersion: v1
+kind: Service
+metadata:
+name: zk-hs
+labels:
+app: zk
+spec:
+ports:
+- port: 2888
+name: server
+- port: 3888
+name: leader-election
+clusterIP: None
+selector:
+app: zk
+---
+apiVersion: v1
+kind: Service
+metadata:
+name: zk-cs
+labels:
+app: zk
+spec:
+ports:
+- port: 2181
+name: client
+selector:
+app: zk
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+name: zk-pdb
+spec:
+selector:
+matchLabels:
+  app: zk
+maxUnavailable: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+name: zk
+spec:
+selector:
+matchLabels:
+  app: zk
+serviceName: zk-hs
+replicas: 3
+updateStrategy:
+type: RollingUpdate
+podManagementPolicy: OrderedReady
+template:
+metadata:
+  labels:
+    app: zk
+spec:
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: &#34;app&#34;
+                operator: In
+                values:
+                - zk
+          topologyKey: &#34;kubernetes.io/hostname&#34;
+  containers:
+  - name: kubernetes-zookeeper
+    imagePullPolicy: Always
+    image: &#34;k8s.gcr.io/kubernetes-zookeeper:1.0-3.4.10&#34;
+    resources:
+      requests:
+        memory: &#34;1Gi&#34;
+        cpu: &#34;0.5&#34;
+    ports:
+    - containerPort: 2181
+      name: client
+    - containerPort: 2888
+      name: server
+    - containerPort: 3888
+      name: leader-election
+    command:
+    - sh
+    - -c
+    - &#34;start-zookeeper \
+      --servers=3 \
+      --data_dir=/var/lib/zookeeper/data \
+      --data_log_dir=/var/lib/zookeeper/data/log \
+      --conf_dir=/opt/zookeeper/conf \
+      --client_port=2181 \
+      --election_port=3888 \
+      --server_port=2888 \
+      --tick_time=2000 \
+      --init_limit=10 \
+      --sync_limit=5 \
+      --heap=512M \
+      --max_client_cnxns=60 \
+      --snap_retain_count=3 \
+      --purge_interval=12 \
+      --max_session_timeout=40000 \
+      --min_session_timeout=4000 \
+      --log_level=INFO&#34;
+    readinessProbe:
+      exec:
+        command:
+        - sh
+        - -c
+        - &#34;zookeeper-ready 2181&#34;
+      initialDelaySeconds: 10
+      timeoutSeconds: 5
+    livenessProbe:
+      exec:
+        command:
+        - sh
+        - -c
+        - &#34;zookeeper-ready 2181&#34;
+      initialDelaySeconds: 10
+      timeoutSeconds: 5
+    volumeMounts:
+    - name: datadir
+      mountPath: /var/lib/zookeeper
+  securityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+volumeClaimTemplates:
+- metadata:
+  name: datadir
+spec:
+  accessModes: [ &#34;ReadWriteOnce&#34; ]
+  resources:
+    requests:
+      storage: 10Gi
+</code></pre>
+</li>
+<li>Crea los objetos:<pre><code>kubectl apply -f app/zookeeper.yaml
+</code></pre>
+</li>
+<li>Verifica que se han creado correctamente:<pre><code>kubectl get services
+kubectl get poddisruptionbudget
+kubectl get statefulsets
+</code></pre>
+</li>
+<li>Verifica que los Pods del StatefulSet se están creando ordenadamente:<pre><code>kubectl get pods -l app=zk -w
+</code></pre>
+</li>
+<li>Verifica los detalles del Servicio:<pre><code>kubectl describe services cassandra -n lab-statefulsets-cassandra
+</code></pre>
+Una vez que el pod <code>zk-2</code> esté en estado <code>Running</code> puedes detener el comando &#34;watch&#34; con <code>CTRL + C</code>.</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Facilitar la elección del líder" duration="0">
+        <p>Cada servidor en el conjunto de Zookeeper necesita un identificador único, asociado con una dirección de red, que todos los servidores necesitan conocer.</p>
+<p>Revisa los hostname de los Pods del StatefulSet:</p>
+<pre><code>for i in 0 1 2; do kubectl exec zk-$i -- hostname; done
+</code></pre>
+<p>Los servidores de Zookeeper usan enteros como identificadores únicos y guardan el identificador de cada servidor en un archivo <code>myid</code> en el directorio de datos.</p>
+<p>Examina dicho archivo en cada servidor:</p>
+<pre><code>for i in 0 1 2; do echo &#34;myid zk-$i; kubectl exec zk-$i -- cat /var/lib/zookeeper/data/myid; done
+</code></pre>
+<p>Lista el FQDN de cada Pod:</p>
+<pre><code>for in in 0 1 2; do kubectl exec zk-$i -- hostname -f; done
+</code></pre>
+<p>El K8s DNS resuelve los FQDN. Si el Pod es redesplegado en otro lugar, los registros A del DNS no cambiarán, sólo serán actualizados con las nuevas direcciones IP de los Pods.</p>
+<p>Revisa el archivo de configuración de la aplicación:</p>
+<pre><code>kubectl exec zk-0 -- cat /opt/zookeeper/conf/zoo.cfg
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Alcanzando consenso" duration="0">
+        <p>Los protocolos de consenso requieren que los identificadores sean únicos para que puedan confirmar qué procesos han enviado qué datos.</p>
+<p>Los registros A para cada Pod se crean cuando el Pod llega al estado <code>Ready</code>, por lo que los FQDN apuntan a un único endpoint, un único servidor.</p>
+<p>Ésto se consigue gracias al despliegue escalonado de Pods del StatefulSet.</p>
+<h2 is-upgraded>Comprobando el conjunto</h2>
+<p>Vamos a escribir datos en un servidor Zookeeper y leerlos desde otro para confirmar que todo está desplegado correctamente.</p>
+<ol type="1">
+<li>Escribe el valor <code>world</code> en el path <code>/hello</code> en el Pod <code>zk-0</code>:<pre><code>kubectl exec zk-0 zkCli.sh create /hello world
+</code></pre>
+</li>
+<li>Lee el valor desde el Pod <code>zk-1</code>:<pre><code>kubectl exec zk-1 zkCli.sh get /hello
+</code></pre>
+</li>
+</ol>
+<p>Ésto verificará que los datos que hemos escrito a <code>zk-0</code> están disponibles en todos los servidores del conjunto.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Proporcionando almacenamiento duradero" duration="0">
+        <p>Zookeeper mantiene todas las entradas en un WAL duradero y escribe instantáneas de memoria a un medio de almacenamiento para conseguir replicar el estado.</p>
+<ol type="1">
+<li>Elimina el StatefulSet:<pre><code>kubectl delete statefulset zk
+</code></pre>
+</li>
+<li>Vigila la eliminación de los Pods del StatefulSet:<pre><code>kubectl get pods -l app=zk -w
+</code></pre>
+Usa <code>CTRL + C</code> cuando se haya eliminado el último Pod, <code>zk-0</code>.</li>
+<li>Reaplica el manifiesto para recrear el StatefulSet:<pre><code>kubectl apply -f app/zookeeper.yaml
+</code></pre>
+</li>
+<li>Vigila los Pods mientras son recreados:<pre><code>kubectl get pods -l app=zk -w
+</code></pre>
+</li>
+<li>Recupera el dato que escribiste antes de eliminar el StatefulSet:<pre><code>kubectl exec zk-2 zkCli.sh get /hello
+</code></pre>
+Podrás comprobar como los datos han persistido en el Volumen Persistente.</li>
+<li>Comprueba el PersistentVolumeClaim de cada Pod:<pre><code>kubectl get pvc -l app=zk
+</code></pre>
+</li>
+</ol>
+<p>Cuando un Pod en el StatefulSet es recreado, mantiene el mismo PersistentVolume asociado montado en el directorio de datos.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Sobreviviendo a eventos de mantenimiento" duration="0">
+        <p>Vamos a planificar ante el caso de eventos de mantenimiento que provoquen fallos en un Nodo.</p>
+<ol type="1">
+<li>Lista los Nodos del clúster:<pre><code>kubectl get nodes
+</code></pre>
+</li>
+<li>Revisa el PodDisruptionBudget:<pre><code>kubectl get pdb zk-pdb
+</code></pre>
+</li>
+<li>Vigila los Pods del StatefulSet:<pre><code>kubectl get pods l app=zk -w
+</code></pre>
+</li>
+<li>Abre otra pestaña de terminal en Cloud Shell y comprueba los Nodos en los que están desplegados los Pods:<pre><code>for i in 0 1 2; do kubectl get pod zk-$i --template &#123;&#123;.spec.nodeName}}; echo &#34;&#34;; done
+</code></pre>
+</li>
+<li>En la 2ª terminal, acordona y deshaucia el Nodo en el que está desplegado el Pod <code>zk-0</code>:<pre><code>kubectl drain $(kubectl get pod zk-0 --template &#123;&#123;.spec.nodeName}}) --ignore-daemonsets --force --delete-local-data
+</code></pre>
+El pod <code>zk-0</code> será redesplegado en otro de los 3 Nodos disponibles.</li>
+<li>Continúa vigialndo los Pods en la 1ª terminal y deshaucia el Nodo en el que está desplegado el Pod <code>zk-1</code>:<pre><code>kubectl drain $(kubectl get pod zk-0 --template &#123;&#123;.spec.nodeName}}) --ignore-daemonsets --force --delete-local-data
+</code></pre>
+El Pod no puede ser redesplegado por la regla de podAntiAffinity, por lo que queda en estado de <code>Pending</code>.</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar el clúster utilizado</h2>
+<pre><code>gcloud container clusters delete lab-zookeeper --zone europe-west1-c
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo desplegar un conjunto de Zookeeper usando un StatefulSet</li>
+<li>Cómo configurar el conjunto usando ConfigMaps</li>
+<li>Cómo expandir el despliegue de servidores de Zookeeper en el conjunto</li>
+<li>Cómo usar PodDisruptionBudgets para asegurar la disponibilidad del servicio durante el mantenimiento programado</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

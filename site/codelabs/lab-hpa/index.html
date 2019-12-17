@@ -1,0 +1,198 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Autoescalado de Pods</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="lab-hpa"
+                  title="Autoescalado de Pods"
+                  environment="web"
+                  feedback-link="https://www.vectoritcgroup.com">
+    
+      <google-codelab-step label="Resumen del ejercicio" duration="0">
+        <p>¿Qué vamos a ver?</p>
+<h2 class="checklist" is-upgraded>What You&#39;ll Learn</h2>
+<ul class="checklist">
+<li>Cómo configurar el autoescalado de Pods</li>
+</ul>
+<p>Basado en la <a href="https://kubernetes.io/docs/tasks" target="_blank">documentación oficial de K8s</a> (<a href="https://github.com/kubernetes/website/blob/master/LICENSE" target="_blank">licencia CC-BY-4.0</a>).</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Entorno" duration="0">
+        <ol type="1">
+<li>Accede a <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></li>
+<li>Loguéate con tu cuenta de usuario elegida para el curso.</li>
+<li>Una vez ya en la consola, en la esquina superior izquierda busca un desplegable con 3 hexágonos pequeños para seleccionar tu proyecto.</li>
+<li>Ábrelo y selecciona tu proyecto asignado. Puedes tener que hacer click en el desplegable de organizaciones y cambiar a <strong>Sin organización</strong>.</li>
+<li>Te recomendamos dividir el escritorio horizontalmente en dos ventanas, una con la consola y/o Cloud Shell y otra con las instrucciones.</li>
+<li>Activa Cloud Shell en el icono de la parte superior derecha <code>&gt;_</code>.</li>
+<li>Puedes configurar la completación de comandos para kubectl con la tecla &#34;TAB&#34;:<pre><code>source &lt;(kubectl completion bash)
+</code></pre>
+Comprueba que funciona escribiendo <code>kubectl</code> y presionando la tecla &#34;TAB&#34; 2 veces.</li>
+</ol>
+<h2 is-upgraded>Crea un namespace</h2>
+<p>Crea un namespace para aislar los recursos de este ejercicio del resto de recursos en tu clúster:</p>
+<pre><code>kubectl create namespace lab-hpa
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Desplegar una aplicación de ejemplo" duration="0">
+        <ol type="1">
+<li>Crea el archivo <code>deployments/demo-app.yaml</code> con este manifiesto:<pre><code>apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+name: demo-app
+spec:
+replicas: 1
+selector:
+matchLabels:
+  run: app
+template:
+metadata:
+  labels:
+    run: app
+spec:
+  containers:
+  - image: gcr.io/google-samples/hello-app:1.0
+    name: app
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+</code></pre>
+</li>
+<li>Crea el Despliegue:<pre><code>kubectl apply -f deployments/demo-app.yaml -n lab-hpa
+</code></pre>
+</li>
+<li>Verifica que los Pods están ejecutándose:<pre><code>kubectl get pods -n lab-hpa
+</code></pre>
+</li>
+<li>Verifica los detalles del Despliegue:<pre><code>kubectl describe deployments demo-app -n lab-hpa
+</code></pre>
+</li>
+<li>Expón el Despliegue con un Servicio NodePort:<pre><code>kubectl expose deployment demo-app --target-port 8080 --type NodePort -n lab-hpa
+</code></pre>
+</li>
+<li>Verifica el Servicio creado:<pre><code>kubectl get service demo-app -n lab-hpa
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Configurar autoescalado horizontal para los Pods" duration="0">
+        <ol type="1">
+<li>Verifica el número de réplicas del Despliegue:<pre><code>kubectl describe deployment demo-app -n lab-hpa
+</code></pre>
+</li>
+<li>Configura el autoescalado para el Despliegue:<pre><code>kubectl autoscale deployment demo-app --max 4 --min 1 --cpu-percent 10 -n lab-hpa
+</code></pre>
+</li>
+<li>Verifica que el HorizontalPodAutoscaler se ha creado correctamente:<pre><code>kubectl get horizontalpodautoscaler -n lab-hpa
+</code></pre>
+</li>
+<li>Verifica sus detalles:<pre><code>kubectl describe horizontalpodautoscaler demo-app -n lab-hpa
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Comprueba el autoescalado de Pods" duration="0">
+        <p>Para comprobarlo, necesitamos generar carga sobre la aplicación para que escale, lo que haremos con una aplicación de generación de carga.</p>
+<ol type="1">
+<li>Crea el archivo <code>deployments/load-generator.yaml</code> con este manifiesto:<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: load-generator
+spec:
+replicas: 4
+selector:
+matchLabels:
+  app: load_generator
+template:
+metadata:
+  labels:
+    app: load_generator
+spec:
+  containers:
+  - name: load_generator
+    image: k8s.gcr.io/busybox
+    args:
+    - /bin/sh
+    - -c
+    - while true; do wget -q -O- http://web:8080; done
+</code></pre>
+</li>
+<li>Crea el Despliegue:<pre><code>kubectl apply -f deployments/load-generator.yaml -n lab-hpa
+</code></pre>
+</li>
+<li>Verifica que los Pods están ejecutándose:<pre><code>kubectl get pods -n lab-hpa
+</code></pre>
+</li>
+<li>Verifica los detalles del Despliegue:<pre><code>kubectl describe deployments load-generator -n lab-hpa
+</code></pre>
+Una vez que el generador de carga comienza a generar tráfico, el Despliegue de la aplicación comienza a incrementarse.</li>
+<li>Inspecciona el HorizontalPodAutoscaler y comprueba durante un par de minutos cómo varía su carga:<pre><code>kubectl get hpa demo-app -n lab-hpa -w
+</code></pre>
+</li>
+<li>Para detener la carga, elimina el Despliegue del generador de carga:<pre><code>kubectl delete deployment load-generator -n lab-hpa
+</code></pre>
+</li>
+<li>Verifica que se ha eliminado correctamente:<pre><code>kubectl get deployments -n lab-hpa
+</code></pre>
+</li>
+<li>Comprueba como el número de réplicas del Despliegue disminuye tras unos momentos:<pre><code>kubectl get deployment demo-app -n lab-hpa -w
+</code></pre>
+</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina el namespace, lo cual eliminará todos los recursos:</p>
+<pre><code>kubectl delete namespace lab-hpa
+</code></pre>
+<p>En esta práctica hemos visto cómo:</p>
+<h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
+<ul class="checklist">
+<li>Cómo configurar el autoescalado de Pods</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

@@ -3,22 +3,22 @@
   "format": "html",
   "prefix": "https://storage.googleapis.com",
   "mainga": "UA-49880327-14",
-  "updated": "2019-12-17T20:41:56+01:00",
-  "id": "lab-desplegar-cluster-k8s",
+  "updated": "2019-12-16T22:06:12+01:00",
+  "id": "lab-hpa",
   "duration": 0,
-  "title": "Desplegar clúster de K8s",
-  "summary": "Desplegar un cluster de K8s en GKE",
-  "source": "lab-k8s-cluster.md",
+  "title": "Autoescalado de Pods",
+  "summary": "Autoescalado de Pods",
+  "source": "lab-hpa.md",
   "theme": "",
   "status": [
     "published"
   ],
   "category": [
-    "introduction-to-k8s"
+    "introduction-to-k8"
   ],
   "tags": [
     "web"
   ],
   "feedback": "https://www.vectoritcgroup.com",
-  "url": "lab-desplegar-cluster-k8s"
+  "url": "lab-hpa"
 }

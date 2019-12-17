@@ -3,12 +3,12 @@
   "format": "html",
   "prefix": "https://storage.googleapis.com",
   "mainga": "UA-49880327-14",
-  "updated": "2019-12-17T20:42:34+01:00",
-  "id": "lab-persistent-volumes",
+  "updated": "2019-12-17T22:21:11+01:00",
+  "id": "lab-statefulsets-zookeeper",
   "duration": 0,
-  "title": "Configurar un Pod para usar un Volumen Persistente como almacenamiento",
-  "summary": "Configurar un Pod para usar un Volumen",
-  "source": "lab-persistent-volumes.md",
+  "title": "Desplegando Zookeeper con un StatefulSet",
+  "summary": "Desplegando Zookeeper con un StatefulSet",
+  "source": "lab-statefulsets-zookeeper.md",
   "theme": "",
   "status": [
     "published"
@@ -20,5 +20,5 @@
     "web"
   ],
   "feedback": "https://www.vectoritcgroup.com",
-  "url": "lab-persistent-volumes"
+  "url": "lab-statefulsets-zookeeper"
 }
