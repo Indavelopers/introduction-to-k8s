@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-configmap
+spec:
+  selector:
+    matchLabels:
+      app: demo-configmap
+  template:
+    metadata:
+      labels:
+        app: demo-configmap
+    spec:
+      containers:
+      - name: hello-world
+        image: gcr.io/google-samples/node-hello:1.0
+        volumeMounts:
+        - name: properties
+          mountPath: /etc/config
+        env:
+        - name: SPAM
+          valueFrom:
+            configMapKeyRef:
+              name: demo-cm-manifest
+              key: spam
+      volumes:
+      - name: properties
+        configMap:
+          name: demo-cm-file

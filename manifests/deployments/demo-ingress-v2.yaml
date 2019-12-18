@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-ingress-v2
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: demo-ingress
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: demo-ingress
+        version: v2
+    spec:
+      containers:
+      - image: gcr.io/google-samples/hello-app:2.0
+        name: hello-world
+        ports:
+        - containerPort: 8080
