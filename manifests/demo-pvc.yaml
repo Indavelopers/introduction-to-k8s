@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-demo-volume
+  labels:
+    type: local
+spec:
+  storageClassName: standard
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  gcePersistentDisk:
+    fsType: ext4
+    pdName: pd-disk-1
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pv-demo-claim
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pv-demo-pod
+spec:
+  containers:
+    - name: pv-demo-container
+      image: nginx
+      ports:
+        - containerPort: 80
+          name: "http-server"
+      volumeMounts:
+        - mountPath: "/usr/share/nginx/html"
+          name: pv-storage
+  volumes:
+    - name: pv-storage
+      persistentVolumeClaim:
+        claimName: pv-demo-claim

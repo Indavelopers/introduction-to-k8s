@@ -117,7 +117,7 @@ kubectl get pods -o wide -n lab-external-service
 ```
 
 1. Vuelve a comprobar el Servicio y apunta el valor del puerto del servicio, [PUERTO], en la línea `NodePort`:
-``` 
+```
 kubectl describe services demo-service -n lab-external-service | grep NodePort
 ```
 

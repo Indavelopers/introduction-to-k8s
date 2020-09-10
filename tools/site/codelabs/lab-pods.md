@@ -113,7 +113,7 @@ kubectl delete pod nginx nginx-open-port nginx-app
 ```
 
 ## Reto
-**¿Serías capaz de desplegar 3 réplicas de la imagen de [Apache 2](https://hub.docker.com/_/httpd)?**
+**¿Serías capaz de desplegar la imagen de [Apache 2](https://hub.docker.com/_/httpd)?**
 
 **¿Y hacerlo a partir de un manifiesto?**
 

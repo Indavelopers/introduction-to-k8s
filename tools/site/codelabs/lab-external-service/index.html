@@ -116,33 +116,34 @@ kubectl describe services demo-service -n lab-external-service
 </li>
 <li>Vuelve a comprobar el Servicio y apunta el valor del puerto del servicio, [PUERTO], en la línea <code>NodePort</code>:<pre><code>kubectl describe services demo-service -n lab-external-service | grep NodePort
 </code></pre>
-<ol type="1">
-<li>Encuentra la IP externa de uno de los Nodos y apúntala, [IP_NODO]:<br>&#34;`</li>
-</ol>
+</li>
+<li>Encuentra la IP externa de uno de los Nodos y apúntala, [IP_NODO]:<pre><code>gcloud compute instances list
+</code></pre>
+</li>
+<li>Comprueba la respuesta del Servicio:<pre><code>curl http://[IP_NODO]:[PUERTO]
+</code></pre>
+</li>
+<li>Elimina el Servicio y recréalo como LoadBalancer:<pre><code>kubectl delete service demo-service -n lab-external-service
+kubectl expose deployment demo-deployment --type LoadBalancer --name demo-service -n lab-external-service
+</code></pre>
+</li>
+<li>Tardará unos minutos en crear un balanceador de carga y asginarle una IP externa. Vigila sus detalles hasta que la IP cambie de <code>PENDING</code> a una dirección IP (ésto puede tardar hasta 4 minutos):<pre><code>kubectl get service demo-service -n lab-external-service -w
+</code></pre>
+</li>
+<li>Cancela el comando de &#34;watch&#34; con <code>CTRL + C</code>.</li>
+<li>Comprueba la respuesta del Servicio de nuevo:<pre><code>curl http://[IP_EXTERNA_LB]:8080
+</code></pre>
 </li>
 </ol>
-<p>gcloud compute instances list</p>
-<pre><code>1. Comprueba la respuesta del Servicio:
-</code></pre>
-<p>curl http://[IP_NODO]:[PUERTO]</p>
-<pre><code>1. Elimina el Servicio y recréalo como LoadBalancer:
-</code></pre>
-<p>kubectl delete service demo-service -n lab-external-service</p>
-<p>kubectl expose deployment demo-deployment –type LoadBalancer –name demo-service -n lab-external-service</p>
-<pre><code>1. Tardará unos minutos en crear un balanceador de carga y asginarle una IP externa. Vigila sus detalles hasta que la IP cambie de `PENDING` a una dirección IP (ésto puede tardar hasta 4 minutos):
-</code></pre>
-<p>kubectl get service demo-service -n lab-external-service -w</p>
-<pre><code>1. Cancela el comando de &#34;watch&#34; con `CTRL + C`.
 
-1. Comprueba la respuesta del Servicio de nuevo:
-</code></pre>
-<p>curl http://[IP_EXTERNA_LB]:8080</p>
-<pre><code>## Para terminar
 
-### Eliminar los recursos usados
-Elimina el namespace, lo cual eliminará todos los recursos:
+      </google-codelab-step>
+    
+      <google-codelab-step label="Para terminar" duration="0">
+        <h2 is-upgraded>Eliminar los recursos usados</h2>
+<p>Elimina el namespace, lo cual eliminará todos los recursos:</p>
+<pre><code>kubectl delete namespace lab-external-service
 </code></pre>
-<p>kubectl delete namespace lab-external-service<br>&#34;`</p>
 <p>En esta práctica hemos visto cómo:</p>
 <h2 class="checklist" is-upgraded>What we&#39;ve covered</h2>
 <ul class="checklist">

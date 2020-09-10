@@ -313,7 +313,7 @@ kubectl describe services demo-frontend -n lab-guestbook
 
 1. Comprueba la respuesta de la aplicación web en una pestaña de tu navegador o con `curl`:
 ```
-https://[IP_EXTERNA]
+http://[IP_EXTERNA]
 ```
 
 ## Escalar el frontend

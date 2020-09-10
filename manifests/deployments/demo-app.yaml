@@ -1,0 +1,23 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: demo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: app
+  template:
+    metadata:
+      labels:
+        run: app
+    spec:
+      containers:
+      - image: gcr.io/google-samples/hello-app:1.0
+        name: app
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          requests:
+            cpu: "250m"

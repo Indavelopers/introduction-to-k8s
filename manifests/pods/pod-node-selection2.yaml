@@ -9,4 +9,4 @@ spec:
   - name: nginx
     image: nginx
     imagePullPolicy: IfNotPresent
-  nodeName: gke-lab-cluster-default-pool-0c437312-t8qp
+  nodeName: gke-lab-cluster-default-pool-0da17cf9-z46l
